@@ -1,0 +1,21 @@
+{
+  "name": "pdflexity",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Production-ready Electron + Next.js application",
+  "scripts": {
+    "dev": "pnpm --parallel run dev",
+    "build": "pnpm --filter renderer build && pnpm --filter electron build",
+    "start": "pnpm --filter electron start",
+    "lint": "pnpm --recursive run lint",
+    "typecheck": "pnpm --recursive run typecheck",
+    "clean": "pnpm --recursive run clean && rm -rf node_modules",
+    "package": "pnpm --filter electron package",
+    "make": "pnpm --filter electron make",
+    "publish": "pnpm --filter electron publish"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  }
+}

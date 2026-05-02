@@ -1,0 +1,12 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true
+  },
+  "references": [
+    { "path": "./apps/renderer" },
+    { "path": "./apps/electron" },
+    { "path": "./packages/shared" }
+  ]
+}
