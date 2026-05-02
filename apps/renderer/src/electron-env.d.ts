@@ -1,15 +1,30 @@
-// Type definitions for Electron APIs exposed via preload script
+// Type definitions for Electron APIs exposed via preload contextBridge
+// Keep in sync with apps/electron/src/preload.ts
+
+type PdfUnlockResult =
+  | { success: true;  data: string; fileName: string }
+  | { success: false; error: string }
+
 interface ElectronAPI {
-  getPlatform: () => Promise<string>;
-  getVersion: () => Promise<string>;
-  openExternal: (url: string) => Promise<void>;
-  // Add more IPC methods as needed
+  // App info
+  getPlatform:  () => Promise<string>
+  getVersion:   () => Promise<string>
+  // Shell
+  openExternal: (url: string) => Promise<void>
+  // PDF operations
+  pdf: {
+    unlock: (
+      buffer: ArrayBuffer,
+      password: string,
+      fileName: string
+    ) => Promise<PdfUnlockResult>
+  }
 }
 
 declare global {
   interface Window {
-    electronAPI: ElectronAPI;
+    electronAPI?: ElectronAPI
   }
 }
 
-export {};
+export {}

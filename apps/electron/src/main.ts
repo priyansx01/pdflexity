@@ -8,7 +8,7 @@ import {
 import * as path from "path";
 import { setupAutoUpdater } from "./updater";
 import { createMenu } from "./menu";
-import { registerIpcHandlers } from "./ipc";
+import { registerIpcHandlers } from "./ipc/index";
 
 // Handle Squirrel events on Windows (installer)
 if (require("electron-squirrel-startup")) {

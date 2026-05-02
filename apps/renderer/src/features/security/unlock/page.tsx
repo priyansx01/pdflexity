@@ -24,6 +24,15 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
+/** Convert base64 string → object URL for download */
+function base64ToObjectUrl(b64: string, mimeType = "application/pdf"): string {
+  const binary = atob(b64)
+  const bytes  = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+  const blob = new Blob([bytes], { type: mimeType })
+  return URL.createObjectURL(blob)
+}
+
 const INITIAL: UnlockState = {
   uploadedFile: null,
   password: "",
@@ -37,36 +46,78 @@ const INITIAL: UnlockState = {
 
 export default function UnlockPdfPage() {
   const [state, setState] = React.useState<UnlockState>(INITIAL)
-  const [isDragging, setIsDragging] = React.useState(false)
+  const [isDragging, setIsDragging]       = React.useState(false)
+  const [downloadName, setDownloadName]   = React.useState("")
 
-  const patch = (p: Partial<UnlockState>) => setState((s) => ({ ...s, ...p }))
+  const patch = (p: Partial<UnlockState>) => setState(s => ({ ...s, ...p }))
 
   // ── File ──────────────────────────────────────────────────────────────────
 
   function handleFileSelect(file: File) {
-    const uploadedFile: UploadedFile = { file, name: file.name, sizeLabel: formatBytes(file.size) }
+    const uploadedFile: UploadedFile = {
+      file,
+      name: file.name,
+      sizeLabel: formatBytes(file.size),
+    }
     patch({ uploadedFile, errorMessage: null, step: "idle", downloadUrl: null })
   }
 
-  // ── Unlock ────────────────────────────────────────────────────────────────
+  // ── Unlock via Go engine ───────────────────────────────────────────────────
 
   async function handleUnlock() {
     if (!state.uploadedFile || !state.password.trim()) return
     patch({ step: "unlocking", errorMessage: null })
 
     try {
-      /**
-       * TODO: Replace simulation with real pdf-lib unlock.
-       * In Electron: ipcRenderer.invoke("pdf:unlock", filePath, password)
-       */
-      await new Promise((res) => setTimeout(res, 1800))
+      // Read the file as ArrayBuffer
+      const buffer = await state.uploadedFile.file.arrayBuffer()
 
-      const blob = new Blob([await state.uploadedFile.file.arrayBuffer()], { type: "application/pdf" })
-      patch({ step: "success", downloadUrl: URL.createObjectURL(blob) })
-    } catch {
-      patch({ step: "error", errorMessage: "Incorrect password. Please try again." })
+      // Call Electron IPC → Go engine
+      const api = window.electronAPI
+      if (!api?.pdf?.unlock) {
+        // Fallback for browser dev (no Electron)
+        throw new Error("Electron IPC not available. Run the app in Electron.")
+      }
+
+      const result = await api.pdf.unlock(
+        buffer,
+        state.password,
+        state.uploadedFile.name
+      )
+
+      if (!result.success) {
+        throw new Error(result.error)
+      }
+
+      // Convert base64 response to a downloadable object URL
+      const url  = base64ToObjectUrl(result.data)
+      setDownloadName(result.fileName)
+      patch({ step: "success", downloadUrl: url })
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "An unexpected error occurred"
+
+      // Distinguish wrong-password from other errors
+      const isWrongPassword =
+        msg.toLowerCase().includes("wrong") ||
+        msg.toLowerCase().includes("incorrect") ||
+        msg.toLowerCase().includes("password") ||
+        msg.toLowerCase().includes("decrypt")
+
+      patch({
+        step: "error",
+        errorMessage: isWrongPassword
+          ? "Incorrect password. Please try again."
+          : `Error: ${msg}`,
+      })
     }
   }
+
+  // Cleanup object URLs on unmount / reset
+  React.useEffect(() => {
+    return () => {
+      if (state.downloadUrl) URL.revokeObjectURL(state.downloadUrl)
+    }
+  }, [state.downloadUrl])
 
   // ── Derived ───────────────────────────────────────────────────────────────
 
@@ -102,7 +153,7 @@ export default function UnlockPdfPage() {
               </div>
             </TooltipTrigger>
             <TooltipContent side="left" className="max-w-[200px] text-center text-xs">
-              Your file is processed <strong>locally</strong> and never uploaded to any server.
+              Powered by a <strong>local Go engine</strong>. Your file never leaves this device.
             </TooltipContent>
           </Tooltip>
         </div>
@@ -113,19 +164,24 @@ export default function UnlockPdfPage() {
 
             {isSuccess && state.downloadUrl ? (
               <SuccessCard
-                fileName={state.uploadedFile?.name ?? "unlocked.pdf"}
+                fileName={downloadName || (state.uploadedFile?.name ?? "unlocked.pdf")}
                 downloadUrl={state.downloadUrl}
-                onReset={() => setState(INITIAL)}
+                onReset={() => {
+                  if (state.downloadUrl) URL.revokeObjectURL(state.downloadUrl)
+                  setState(INITIAL)
+                }}
               />
             ) : (
               <>
-                {/* Step 1 */}
+                {/* Step 1 — Upload */}
                 <div className="space-y-2">
                   <StepLabel n={1} text="Upload your locked PDF" />
                   {state.uploadedFile ? (
                     <FileCard
                       uploadedFile={state.uploadedFile}
-                      onReplace={() => patch({ uploadedFile: null, password: "", errorMessage: null, step: "idle", downloadUrl: null })}
+                      onReplace={() =>
+                        patch({ uploadedFile: null, password: "", errorMessage: null, step: "idle", downloadUrl: null })
+                      }
                     />
                   ) : (
                     <DropZone
@@ -137,12 +193,15 @@ export default function UnlockPdfPage() {
                   )}
                 </div>
 
-                {/* Step 2 */}
-                <div className={cn("space-y-2 transition-opacity duration-200", !state.uploadedFile && "pointer-events-none opacity-40")}>
+                {/* Step 2 — Password */}
+                <div className={cn(
+                  "space-y-2 transition-opacity duration-200",
+                  !state.uploadedFile && "pointer-events-none opacity-40"
+                )}>
                   <StepLabel n={2} text="Enter the PDF password" />
                   <PasswordInput
                     value={state.password}
-                    onChange={(val) => patch({ password: val, errorMessage: null, step: "idle" })}
+                    onChange={val => patch({ password: val, errorMessage: null, step: "idle" })}
                     showPassword={state.showPassword}
                     onToggleShow={() => patch({ showPassword: !state.showPassword })}
                     hasError={hasError}
@@ -152,7 +211,7 @@ export default function UnlockPdfPage() {
                   />
                 </div>
 
-                {/* Step 3 */}
+                {/* Step 3 — Unlock */}
                 <div className="space-y-3 pt-1">
                   <button
                     onClick={handleUnlock}
@@ -169,7 +228,7 @@ export default function UnlockPdfPage() {
                     {isLoading ? (
                       <span className="flex items-center justify-center gap-2">
                         <Loader2 className="h-4 w-4 animate-spin" />
-                        Unlocking…
+                        Unlocking with Go engine…
                       </span>
                     ) : (
                       <span className="flex items-center justify-center gap-2">
@@ -179,8 +238,9 @@ export default function UnlockPdfPage() {
                     )}
                   </button>
 
+                  {/* Trust note */}
                   <p className="text-center text-[11px] text-muted-foreground/60">
-                    🔒 Your file is processed locally and never uploaded to any server
+                    🔒 Powered by a local Go engine (pdfcpu) — your file never leaves this device
                   </p>
                 </div>
               </>
