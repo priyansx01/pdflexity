@@ -3,10 +3,11 @@ package model
 // Command is the JSON-RPC request read from stdin.
 // One JSON object per line — never batched.
 type Command struct {
-	Op         string `json:"op"`
-	InputPath  string `json:"inputPath"`
-	OutputPath string `json:"outputPath"`
-	Password   string `json:"password,omitempty"`
+	Op          string `json:"op"`
+	InputPath   string `json:"inputPath"`
+	InputPathB  string `json:"inputPathB,omitempty"`  // compare: second input
+	OutputPath  string `json:"outputPath"`
+	Password    string `json:"password,omitempty"`
 }
 
 // Response is the JSON-RPC result written to stdout.

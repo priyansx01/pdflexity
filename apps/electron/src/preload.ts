@@ -30,5 +30,11 @@ contextBridge.exposeInMainWorld("electronAPI", {
       fileName: string
     ): Promise<{ success: true; data: string; fileName: string } | { success: false; error: string }> =>
       ipcRenderer.invoke("pdf:protect", new Uint8Array(buffer), password, fileName),
+
+    compare: (
+      bufferA: ArrayBuffer,
+      bufferB: ArrayBuffer,
+    ): Promise<{ success: true; data: unknown } | { success: false; error: string }> =>
+      ipcRenderer.invoke("pdf:compare", bufferA, bufferB),
   },
 });

@@ -2,6 +2,7 @@ import { ipcMain, app, shell } from "electron";
 import { Channels } from "../constants/channels";
 import { registerUnlockHandler }  from "./pdf/unlock";
 import { registerProtectHandler } from "./pdf/protect";
+import { registerCompareHandler } from "./pdf/compare";
 
 /**
  * Central IPC router.
@@ -25,4 +26,5 @@ export function registerIpcHandlers(): void {
   // ── PDF operations ────────────────────────────────────────────────────────
   registerUnlockHandler();
   registerProtectHandler();
+  registerCompareHandler();
 }

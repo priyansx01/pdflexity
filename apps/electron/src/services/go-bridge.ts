@@ -7,6 +7,7 @@ import * as fs from "fs";
 interface GoCommand {
   op: string;
   inputPath?: string;
+  inputPathB?: string;   // compare: second input PDF
   outputPath?: string;
   password?: string;
 }

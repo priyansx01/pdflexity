@@ -10,6 +10,7 @@ export const Channels = {
   // PDF operations
   PDF_UNLOCK:  "pdf:unlock",
   PDF_PROTECT: "pdf:protect",
+  PDF_COMPARE: "pdf:compare",
 } as const
 
 export type ChannelName = (typeof Channels)[keyof typeof Channels]

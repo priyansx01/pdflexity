@@ -15,6 +15,8 @@ func Route(enc *json.Encoder, cmd model.Command) {
 		handleUnlock(enc, cmd)
 	case "protect":
 		handleProtect(enc, cmd)
+	case "compare":
+		handleCompare(enc, cmd)
 	default:
 		writeError(enc, fmt.Sprintf("unknown operation: %q", cmd.Op))
 	}
