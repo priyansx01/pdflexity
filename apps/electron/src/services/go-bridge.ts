@@ -8,6 +8,7 @@ interface GoCommand {
   op: string;
   inputPath?: string;
   inputPathB?: string;   // compare: second input PDF
+  inputPaths?: string[]; // merge: multiple input PDFs
   outputPath?: string;
   password?: string;
 }

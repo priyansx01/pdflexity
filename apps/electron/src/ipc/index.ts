@@ -3,6 +3,7 @@ import { Channels } from "../constants/channels";
 import { registerUnlockHandler }  from "./pdf/unlock";
 import { registerProtectHandler } from "./pdf/protect";
 import { registerCompareHandler } from "./pdf/compare";
+import { registerMergeHandler } from "./pdf/merge";
 
 /**
  * Central IPC router.
@@ -27,4 +28,5 @@ export function registerIpcHandlers(): void {
   registerUnlockHandler();
   registerProtectHandler();
   registerCompareHandler();
+  registerMergeHandler();
 }
