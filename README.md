@@ -1,134 +1,201 @@
-# Electron + Next.js (pnpm monorepo)
+# 📄 pdflexity
 
-Production-ready desktop application with Electron and Next.js, managed as a pnpm monorepo.
+**pdflexity** is a fast, privacy-first PDF toolkit built with **Electron.js + Next.js**, powered by a **Golang processing engine** for high-performance local document operations.
 
-## Architecture
+> ⚡ No uploads. No servers. Your files stay on your machine.
 
+---
+
+## 🚀 Why pdflexity?
+
+Most online PDF tools require uploading sensitive documents to remote servers — which introduces **privacy risks**, **latency**, and **file size limits**.
+
+**pdflexity solves this by:**
+
+* Processing everything **locally on your device**
+* Using **Golang for CPU-efficient operations**
+* Delivering a **premium, native desktop experience** via Electron
+
+---
+
+## ✨ Features
+
+* 📎 **Merge PDFs & Images**: Drag, drop, and seamlessly combine PDFs and image formats.
+* 🔐 **Protect & Unlock PDFs**: Add or remove password protection from your sensitive documents.
+* 🔍 **Compare PDFs**: Visually inspect the differences between two documents.
+* 🖼 **Card-based UI with Live Previews**: Render actual document thumbnails directly in the grid.
+* ⚡ **High-performance Processing**: Instant operations powered by a dedicated Go engine.
+* 📴 **100% Offline**: No cloud dependency, ensuring total data privacy.
+
+---
+
+## 🧱 Tech Stack
+
+### Frontend (Renderer)
+
+* **Next.js** (App Router)
+* **React**
+* **Tailwind CSS**
+* **shadcn/ui**
+* **Framer Motion** (Micro-animations)
+
+### Desktop Layer
+
+* **Electron.js** (Main Process + Secure Preload Bridge)
+
+### Backend Engine (Local)
+
+* **Golang**
+* **pdfcpu** (Robust PDF processing)
+
+---
+
+## 🧠 Architecture
+
+```text
+User (Renderer UI)
+      ↓
+Electron Preload (Secure IPC Bridge)
+      ↓
+Electron Main Process
+      ↓
+Golang Binary (pdfcpu RPC Engine)
+      ↓
+Local File System
 ```
-electron-next-app/
-├── apps/
-│   ├── electron/          # Electron main process (Node.js / TypeScript)
-│   │   ├── src/
-│   │   │   ├── main.ts    # App entry — creates BrowserWindow
-│   │   │   ├── preload.ts # Secure IPC bridge (contextBridge)
-│   │   │   ├── ipc.ts     # IPC handler registration
-│   │   │   ├── menu.ts    # Native application menu
-│   │   │   └── updater.ts # Auto-update logic
-│   │   └── forge.config.ts
-│   └── renderer/          # Next.js frontend (React / TypeScript)
-│       └── src/app/       # App Router pages
-├── packages/
-│   └── shared/            # Shared TypeScript types
-├── package.json           # Root workspace
-└── pnpm-workspace.yaml
+
+* The **renderer never accesses the file system directly**.
+* All sensitive operations are handled via **secure IPC**.
+* PDF processing is delegated to a long-running **Golang binary via standard input/output for maximum performance**.
+
+---
+
+## 🔐 Privacy First
+
+* ❌ No file uploads
+* ❌ No tracking of document content
+* ❌ No external API calls for processing
+* ✅ Everything runs locally
+
+Your documents never leave your system — ideal for:
+
+* Legal files
+* Financial documents
+* Internal company data
+
+---
+
+## 📦 Installation
+
+### 1. Clone the repository
+
+```bash
+git clone https://github.com/priyansx01/pdflexity.git
+cd pdflexity
 ```
 
-## Security Model
+### 2. Install dependencies
 
-- `contextIsolation: true` — renderer cannot access Node.js APIs directly
-- `nodeIntegration: false` — no Node.js in renderer process
-- `sandbox: true` — renderer runs in OS-level sandbox
-- All IPC calls go through `contextBridge` in `preload.ts`
-- Electron Fuses harden the binary (no `ELECTRON_RUN_AS_NODE`, asar integrity, etc.)
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js >= 18
-- pnpm >= 8 (`npm install -g pnpm`)
-
-### Install
+This project uses `pnpm` as its package manager.
 
 ```bash
 pnpm install
 ```
 
-### Development
+### 3. Build the Go Engine
 
-Starts Next.js dev server (port 3000) and Electron simultaneously:
+The application relies on a local Go binary for PDF processing. You must build it before running the app:
+
+```bash
+cd services/pdf-engine
+go build -o ../../apps/electron/bin/pdflexity-engine.exe ./cmd/pdflexity-engine/
+cd ../..
+```
+
+### 4. Run development
+
+Starts both the Next.js dev server and the Electron application concurrently:
 
 ```bash
 pnpm dev
 ```
 
-### Production Build
+---
+
+## ⚙️ Build (Production)
+
+To build a standalone distributable for your platform:
 
 ```bash
-# 1. Build Next.js static export
+# Build the Next.js static export
 pnpm --filter renderer build
 
-# 2. Compile Electron TypeScript
+# Compile the Electron TypeScript code
 pnpm --filter electron build
 
-# 3. Package into distributable
+# Package the application
 pnpm --filter electron make
 ```
 
-Outputs are in `apps/electron/out/`.
+---
 
-## Adding IPC Methods
+## 🔌 IPC Architecture Example
 
-**1. Add handler in `apps/electron/src/ipc.ts`:**
+The frontend securely communicates with the backend without exposing Node.js:
+
 ```ts
-ipcMain.handle("myfeature:do-something", async (_event, arg: string) => {
-  return `result: ${arg}`;
-});
-```
-
-**2. Expose via preload in `apps/electron/src/preload.ts`:**
-```ts
+// preload.ts (Bridge)
 contextBridge.exposeInMainWorld("electronAPI", {
-  // ...existing methods
-  doSomething: (arg: string): Promise<string> =>
-    ipcRenderer.invoke("myfeature:do-something", arg),
+  pdf: {
+    merge: (files, fileName) => ipcRenderer.invoke("pdf:merge", files, fileName)
+  }
 });
 ```
 
-**3. Update types in `apps/renderer/src/electron-env.d.ts`:**
 ```ts
-interface ElectronAPI {
-  // ...existing methods
-  doSomething: (arg: string) => Promise<string>;
-}
+// ipc/pdf/merge.ts (Main Process)
+ipcMain.handle("pdf:merge", async (_event, buffers, names, fileName) => {
+  // 1. Write buffers to temporary directory
+  // 2. Send command to the Go binary via `goBridge`
+  const result = await goBridge.send({ op: "merge", inputPaths, outputPath });
+  // 3. Return Base64 data back to frontend
+});
 ```
 
-**4. Call from React:**
-```ts
-const result = await window.electronAPI.doSomething("hello");
-```
+---
 
-## Environment Variables
+## 🎨 UI Philosophy
 
-Copy `.env.example` to `.env` and fill in values.
+* **Desktop-first UX**: Built to feel like a native macOS/Windows application.
+* **Premium Aesthetics**: Glassmorphism, smooth gradients, and carefully crafted micro-interactions.
+* **Modern Grids**: Card-based interactions instead of boring lists.
+* **Fluid Drag-and-Drop**: Built custom sensors to bypass Chromium pointer capture limitations.
 
-| Variable | Description |
-|----------|-------------|
-| `UPDATE_FEED_URL` | Electron auto-update feed URL |
-| `NEXT_PUBLIC_APP_NAME` | App name exposed to renderer |
+---
 
-## Scripts
+## 🤝 Contributing
 
-| Command | Description |
-|---------|-------------|
-| `pnpm dev` | Start dev mode (Next.js + Electron) |
-| `pnpm build` | Build all packages |
-| `pnpm package` | Package app without installers |
-| `pnpm make` | Build platform installers |
-| `pnpm typecheck` | Type-check all packages |
-| `pnpm lint` | Lint all packages |
-| `pnpm clean` | Clean all build artifacts |
+We welcome contributions!
 
-## Distribution
+### Steps:
 
-Electron Forge creates installers for all platforms:
+1. Fork the repo
+2. Create a feature branch
+3. Commit your changes
+4. Open a Pull Request
 
-- **Windows**: `.exe` (Squirrel)
-- **macOS**: `.dmg`
-- **Linux**: `.deb`, `.rpm`
+---
 
-Run on each target platform (cross-compilation not supported):
+## 📄 License
 
-```bash
-pnpm make
-```
+MIT License
+
+---
+
+## 💡 Vision
+
+To build the **fastest, most private PDF toolkit** that developers and professionals can trust — without compromising data security or user experience.
+
+---
+
+**Built for speed. Designed for privacy. Powered by Go.**
