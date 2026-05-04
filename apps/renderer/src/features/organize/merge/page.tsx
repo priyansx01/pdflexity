@@ -9,20 +9,14 @@ import { DropZone } from "./components/drop-zone"
 import { FileList } from "./components/file-list"
 import { SuccessCard } from "./components/success-card"
 
+import { useMergeStore } from "@/stores/use-merge-store"
+
 function generateId() {
   return Math.random().toString(36).substring(2, 9)
 }
 
 export default function MergePdfPage() {
-  const [state, setState] = React.useState<MergeState>({
-    files: [],
-    step: "idle",
-    errorMessage: null,
-    downloadUrl: null,
-    fileName: null,
-  })
-
-  const patch = (p: Partial<MergeState>) => setState(s => ({ ...s, ...p }))
+  const store = useMergeStore()
 
   // ── Handlers ────────────────────────────────────────────────────────────
 
@@ -31,49 +25,34 @@ export default function MergePdfPage() {
       id: generateId(),
       file: f
     }))
-    setState(prev => ({
-      ...prev,
-      files: [...prev.files, ...wrappedFiles],
-      errorMessage: null,
-    }))
+    store.addFiles(wrappedFiles)
   }
 
   function handleRemoveFile(id: string) {
-    setState(prev => ({
-      ...prev,
-      files: prev.files.filter(f => f.id !== id),
-      errorMessage: null
-    }))
+    store.removeFile(id)
   }
 
   function handleReorder(newFiles: MergeFile[]) {
-    patch({ files: newFiles })
+    store.reorderFiles(newFiles)
   }
 
   function reset() {
-    if (state.downloadUrl) URL.revokeObjectURL(state.downloadUrl)
-    patch({
-      files: [],
-      step: "idle",
-      errorMessage: null,
-      downloadUrl: null,
-      fileName: null,
-    })
+    store.reset()
   }
 
   // ── Engine Call ─────────────────────────────────────────────────────────
 
   async function runMerge() {
-    if (state.files.length < 2) {
-      patch({ errorMessage: "Please select at least two PDF files to merge." })
+    if (store.files.length < 2) {
+      store.setError("Please select at least two PDF files to merge.")
       return
     }
 
-    patch({ step: "loading", errorMessage: null })
+    store.setStep("loading")
 
     try {
       // 1. Convert all files to ArrayBuffer and pair with name
-      const fileData = await Promise.all(state.files.map(async f => ({
+      const fileData = await Promise.all(store.files.map(async f => ({
         buffer: await f.file.arrayBuffer(),
         name: f.file.name
       })))
@@ -97,14 +76,10 @@ export default function MergePdfPage() {
       const blob = new Blob([bytes], { type: "application/pdf" })
       const url = URL.createObjectURL(blob)
 
-      patch({
-        step: "success",
-        downloadUrl: url,
-        fileName: result.fileName,
-      })
+      store.setResult(url, result.fileName)
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
-      patch({ step: "error", errorMessage: msg })
+      store.setError(msg)
     }
   }
 
@@ -125,21 +100,21 @@ export default function MergePdfPage() {
 
       {/* Main Content */}
       <div className="flex-1 min-h-0 flex flex-col">
-        {state.step === "success" && state.downloadUrl && state.fileName ? (
+        {store.step === "success" && store.downloadUrl && store.fileName ? (
           <SuccessCard
-            fileName={state.fileName}
-            downloadUrl={state.downloadUrl}
+            fileName={store.fileName}
+            downloadUrl={store.downloadUrl}
             onReset={reset}
           />
         ) : (
           <div className="flex flex-1 flex-col min-h-0 space-y-6">
-            {state.files.length === 0 ? (
+            {store.files.length === 0 ? (
               <DropZone onFiles={handleFilesAdded} />
             ) : (
               <div className="flex flex-1 flex-col gap-6 min-h-0 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <div className="flex-1 min-h-0">
                   <FileList
-                    files={state.files}
+                    files={store.files}
                     onReorder={handleReorder}
                     onRemove={handleRemoveFile}
                     onAddMore={handleFilesAdded}
@@ -154,12 +129,12 @@ export default function MergePdfPage() {
 
                   <button
                     onClick={runMerge}
-                    disabled={state.step === "loading" || state.files.length < 2}
+                    disabled={store.step === "loading" || store.files.length < 2}
                     className="group relative overflow-hidden rounded-xl bg-emerald-500 px-8 py-3.5 font-bold text-white shadow-lg shadow-emerald-500/25 transition-all hover:bg-emerald-600 hover:shadow-emerald-500/40 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/15 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
                     <span className="relative flex items-center justify-center gap-2">
-                      {state.step === "loading" ? (
+                      {store.step === "loading" ? (
                         <>
                           <Loader2 className="h-4 w-4 animate-spin" />
                           Merging PDFs...
@@ -167,7 +142,7 @@ export default function MergePdfPage() {
                       ) : (
                         <>
                           <Merge className="h-4 w-4" />
-                          Merge {state.files.length} files
+                          Merge {store.files.length} files
                         </>
                       )}
                     </span>
@@ -177,10 +152,10 @@ export default function MergePdfPage() {
             )}
 
             {/* Error message */}
-            {(state.errorMessage || (state.files.length === 1 && state.step !== "success")) && (
+            {(store.errorMessage || (store.files.length === 1 && store.step !== "success")) && (
               <div className="flex items-center gap-3 rounded-xl bg-amber-500/10 px-4 py-3 text-sm text-amber-600 dark:text-amber-400 ring-1 ring-amber-500/20 animate-in fade-in duration-300">
                 <AlertCircle className="h-4 w-4 shrink-0" />
-                {state.errorMessage || "Please add at least one more PDF file to merge."}
+                {store.errorMessage || "Please add at least one more PDF file to merge."}
               </div>
             )}
           </div>

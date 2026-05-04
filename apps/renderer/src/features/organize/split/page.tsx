@@ -87,9 +87,13 @@ export function SplitPage() {
     return (
       <div className="flex h-full w-full items-center justify-center p-6">
         <SuccessCard
-          fileName="Split_Documents.zip"
-          fileUrl="#"
+          fileName="Split_Documents.pdf"
+          downloadUrl="#"
           onReset={reset}
+          title="Split Successfully"
+          description="Your PDF file has been successfully split."
+          primaryActionText="Save Split PDF"
+          secondaryActionText="Split More"
         />
       </div>
     )

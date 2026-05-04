@@ -7,9 +7,21 @@ interface SuccessCardProps {
   fileName: string
   downloadUrl: string
   onReset: () => void
+  title?: string
+  description?: string
+  primaryActionText?: string
+  secondaryActionText?: string
 }
 
-export function SuccessCard({ fileName, downloadUrl, onReset }: SuccessCardProps) {
+export function SuccessCard({ 
+  fileName, 
+  downloadUrl, 
+  onReset,
+  title = "Merged Successfully",
+  description = "Your PDF files have been combined into a single document.",
+  primaryActionText = "Save Merged PDF",
+  secondaryActionText = "Merge More"
+}: SuccessCardProps) {
   function handleDownload() {
     const a = document.createElement("a")
     a.href = downloadUrl
@@ -24,9 +36,9 @@ export function SuccessCard({ fileName, downloadUrl, onReset }: SuccessCardProps
       </div>
 
       <div className="space-y-2">
-        <h2 className="text-2xl font-bold tracking-tight text-foreground">Merged Successfully</h2>
+        <h2 className="text-2xl font-bold tracking-tight text-foreground">{title}</h2>
         <p className="text-sm text-muted-foreground max-w-[300px]">
-          Your PDF files have been combined into a single document.
+          {description}
         </p>
       </div>
 
@@ -36,14 +48,14 @@ export function SuccessCard({ fileName, downloadUrl, onReset }: SuccessCardProps
           className="flex items-center justify-center gap-2 rounded-xl bg-emerald-500 px-6 py-3 font-semibold text-white shadow-lg shadow-emerald-500/20 transition-all hover:bg-emerald-600 hover:shadow-emerald-500/30 active:scale-[0.98]"
         >
           <Download className="h-4 w-4" />
-          Save Merged PDF
+          {primaryActionText}
         </button>
         <button
           onClick={onReset}
           className="flex items-center justify-center gap-2 rounded-xl bg-muted/50 px-6 py-3 font-semibold text-foreground transition-all hover:bg-muted active:scale-[0.98]"
         >
           <RefreshCw className="h-4 w-4" />
-          Merge More
+          {secondaryActionText}
         </button>
       </div>
     </div>

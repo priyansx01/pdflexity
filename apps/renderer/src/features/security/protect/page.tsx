@@ -15,6 +15,8 @@ import { FileRow }         from "./components/file-row"
 import { PasswordField }   from "./components/password-field"
 import { SuccessCard }     from "./components/success-card"
 
+import { useProtectStore } from "@/stores/use-protect-store"
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function base64ToObjectUrl(b64: string): string {
@@ -55,15 +57,13 @@ function StepLabel({ n, text, hint, active = false, done = false }: {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ProtectPdfPage() {
-  const [state, setState] = React.useState<ProtectState>(INITIAL_STATE)
+  const store = useProtectStore()
   const [isDragging, setIsDragging] = React.useState(false)
   const inputRef = React.useRef<HTMLInputElement>(null)
 
-  const patch = (p: Partial<ProtectState>) => setState(s => ({ ...s, ...p }))
-
   React.useEffect(() => {
-    return () => { if (state.downloadUrl) URL.revokeObjectURL(state.downloadUrl) }
-  }, [state.downloadUrl])
+    return () => { if (store.downloadUrl) URL.revokeObjectURL(store.downloadUrl) }
+  }, [store.downloadUrl])
 
   // ── Handlers ───────────────────────────────────────────────────────────────
 
@@ -71,54 +71,47 @@ export default function ProtectPdfPage() {
     e.preventDefault()
     setIsDragging(false)
     const file = e.dataTransfer.files[0]
-    if (file?.type === "application/pdf") patch({ file, step: "idle", errorMessage: null })
+    if (file?.type === "application/pdf") store.setFile(file)
   }
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
-    if (file) patch({ file, step: "idle", errorMessage: null })
+    if (file) store.setFile(file)
   }
 
   async function handleProtect() {
-    if (!state.file || !state.password.trim()) return
-    if (state.password !== state.confirmPassword) {
-      patch({ errorMessage: "Passwords don't match." })
+    if (!store.file || !store.password.trim()) return
+    if (store.password !== store.confirmPassword) {
+      store.setError("Passwords don't match.")
       return
     }
 
-    patch({ step: "protecting", errorMessage: null })
+    store.setStep("protecting")
 
     try {
-      const buffer = await state.file.arrayBuffer()
+      const buffer = await store.file.arrayBuffer()
       const api = window.electronAPI
       if (!api?.pdf?.protect) throw new Error("Electron IPC not available.")
 
-      const result = await api.pdf.protect(buffer, state.password, state.file.name)
+      const result = await api.pdf.protect(buffer, store.password, store.file.name)
       if (!result.success) throw new Error(result.error)
 
-      patch({
-        step: "success",
-        downloadUrl: base64ToObjectUrl(result.data),
-        downloadName: result.fileName,
-      })
+      store.setResult(base64ToObjectUrl(result.data), result.fileName)
     } catch (err: unknown) {
-      patch({
-        step: "error",
-        errorMessage: err instanceof Error ? err.message : "Unexpected error",
-      })
+      store.setError(err instanceof Error ? err.message : "Unexpected error")
     }
   }
 
   // ── Derived ────────────────────────────────────────────────────────────────
 
-  const isProtecting   = state.step === "protecting"
-  const isSuccess      = state.step === "success"
-  const hasError       = state.step === "error"
-  const passwordsMatch = state.password === state.confirmPassword
-  const canProtect     = !!state.file && state.password.trim().length >= 1
+  const isProtecting   = store.step === "protecting"
+  const isSuccess      = store.step === "success"
+  const hasError       = store.step === "error"
+  const passwordsMatch = store.password === store.confirmPassword
+  const canProtect     = !!store.file && store.password.trim().length >= 1
                           && passwordsMatch && !isProtecting
 
-  const len = state.password.length
+  const len = store.password.length
   const strength = len === 0 ? 0 : len < 5 ? 1 : len < 8 ? 2 : len < 12 ? 3 : 4
   const strengthLabel = ["", "Weak", "Fair", "Good", "Strong"][strength]
   const strengthColor = ["", "bg-red-400", "bg-amber-400", "bg-yellow-400", "bg-[#10b981]"][strength]
@@ -159,13 +152,12 @@ export default function ProtectPdfPage() {
           <div className="w-full max-w-[540px]">
 
             {/* Success */}
-            {isSuccess && state.downloadUrl && (
+            {isSuccess && store.downloadUrl && (
               <SuccessCard
-                fileName={state.downloadName}
-                downloadUrl={state.downloadUrl}
+                fileName={store.downloadName}
+                downloadUrl={store.downloadUrl}
                 onReset={() => {
-                  if (state.downloadUrl) URL.revokeObjectURL(state.downloadUrl)
-                  setState(INITIAL_STATE)
+                  store.reset()
                 }}
               />
             )}
@@ -180,12 +172,12 @@ export default function ProtectPdfPage() {
 
                     {/* Step 1: Upload */}
                     <div className="p-6">
-                      <StepLabel n={1} active done={!!state.file} text="Upload PDF" hint="Select the PDF you want to protect" />
+                      <StepLabel n={1} active done={!!store.file} text="Upload PDF" hint="Select the PDF you want to protect" />
                       <div className="mt-4">
-                        {state.file ? (
+                        {store.file ? (
                           <FileRow
-                            file={state.file}
-                            onReplace={() => patch({ file: null, password: "", confirmPassword: "", errorMessage: null, step: "idle" })}
+                            file={store.file}
+                            onReplace={() => store.reset()}
                           />
                         ) : (
                           <DropZone
@@ -201,24 +193,24 @@ export default function ProtectPdfPage() {
                     </div>
 
                     {/* Steps 2+3: only after file upload */}
-                    {state.file && (
+                    {store.file && (
                       <>
                         {/* Step 2: Password */}
                         <div className="p-6 animate-in fade-in-0 slide-in-from-top-2 duration-300">
-                          <StepLabel n={2} active done={state.password.length > 0 && passwordsMatch} text="Set password" hint="This password will be required to open the PDF" />
+                          <StepLabel n={2} active done={store.password.length > 0 && passwordsMatch} text="Set password" hint="This password will be required to open the PDF" />
                           <div className="mt-4 space-y-3">
 
                             <PasswordField
                               id="protect-password"
                               placeholder="Create a strong password…"
-                              value={state.password}
-                              show={state.showPassword}
-                              onToggleShow={() => patch({ showPassword: !state.showPassword })}
-                              onChange={v => patch({ password: v, errorMessage: null, step: "idle" })}
+                              value={store.password}
+                              show={store.showPassword}
+                              onToggleShow={() => store.setShowPassword(!store.showPassword)}
+                              onChange={v => store.setPassword(v)}
                             />
 
                             {/* Strength bar */}
-                            {state.password.length > 0 && (
+                            {store.password.length > 0 && (
                               <div className="flex items-center gap-2 animate-in fade-in-0 duration-200">
                                 <div className="flex flex-1 gap-1">
                                   {[1, 2, 3, 4].map(n => (
@@ -232,24 +224,24 @@ export default function ProtectPdfPage() {
                             <PasswordField
                               id="protect-confirm"
                               placeholder="Confirm password…"
-                              value={state.confirmPassword}
-                              show={state.showConfirm}
-                              onToggleShow={() => patch({ showConfirm: !state.showConfirm })}
-                              onChange={v => patch({ confirmPassword: v, errorMessage: null, step: "idle" })}
-                              hasError={state.confirmPassword.length > 0 && !passwordsMatch}
+                              value={store.confirmPassword}
+                              show={store.showConfirm}
+                              onToggleShow={() => store.setShowConfirm(!store.showConfirm)}
+                              onChange={v => store.setConfirmPassword(v)}
+                              hasError={store.confirmPassword.length > 0 && !passwordsMatch}
                             />
 
-                            {state.confirmPassword.length > 0 && !passwordsMatch && (
+                            {store.confirmPassword.length > 0 && !passwordsMatch && (
                               <div className="flex items-center gap-2 rounded-lg bg-red-500/8 px-3 py-2 ring-1 ring-red-500/15 animate-in fade-in-0 duration-200">
                                 <AlertCircle className="h-3.5 w-3.5 shrink-0 text-red-500" />
                                 <span className="text-xs text-red-600 dark:text-red-400/90">Passwords don't match</span>
                               </div>
                             )}
 
-                            {hasError && state.errorMessage && (
+                            {hasError && store.errorMessage && (
                               <div role="alert" className="flex items-center gap-2 rounded-lg bg-red-500/8 px-3 py-2 ring-1 ring-red-500/15 animate-in fade-in-0 duration-200">
                                 <AlertCircle className="h-3.5 w-3.5 shrink-0 text-red-500" />
-                                <span className="text-xs text-red-600 dark:text-red-400/90">{state.errorMessage}</span>
+                                <span className="text-xs text-red-600 dark:text-red-400/90">{store.errorMessage}</span>
                               </div>
                             )}
                           </div>

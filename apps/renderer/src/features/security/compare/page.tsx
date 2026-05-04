@@ -11,27 +11,29 @@ import { PdfViewer }   from "./components/pdf-viewer"
 import { DiffPanel }   from "./components/diff-panel"
 import { Toolbar }     from "./components/toolbar"
 
+import { useCompareStore } from "@/stores/use-compare-store"
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function generateTextReport(state: CompareState): string {
+function generateTextReport(store: ReturnType<typeof useCompareStore>): string {
   const lines: string[] = []
   lines.push("PDF Comparison Report")
   lines.push("=".repeat(40))
-  lines.push(`Original : ${state.fileA?.name ?? "—"}`)
-  lines.push(`Modified : ${state.fileB?.name ?? "—"}`)
+  lines.push(`Original : ${store.fileA?.name ?? "—"}`)
+  lines.push(`Modified : ${store.fileB?.name ?? "—"}`)
   lines.push(`Generated: ${new Date().toLocaleString()}`)
-  if (state.stats) {
+  if (store.stats) {
     lines.push("")
-    lines.push(`Overall Similarity : ${state.stats.similarity}%`)
-    lines.push(`Changed Pages      : ${state.stats.changedPages} / ${state.stats.totalPages}`)
-    lines.push(`Total Added Chars  : +${state.stats.totalAdded}`)
-    lines.push(`Total Deleted Chars: -${state.stats.totalDeleted}`)
+    lines.push(`Overall Similarity : ${store.stats.similarity}%`)
+    lines.push(`Changed Pages      : ${store.stats.changedPages} / ${store.stats.totalPages}`)
+    lines.push(`Total Added Chars  : +${store.stats.totalAdded}`)
+    lines.push(`Total Deleted Chars: -${store.stats.totalDeleted}`)
   }
   lines.push("")
   lines.push("=".repeat(40))
   lines.push("CHANGES")
   lines.push("=".repeat(40))
-  state.diffs
+  store.diffs
     .filter(d => d.addedChars > 0 || d.deletedChars > 0)
     .forEach(d => {
       lines.push(`\n[Page ${d.page}] +${d.addedChars} / -${d.deletedChars} chars  (${d.similarity}% match)`)
@@ -46,8 +48,7 @@ function generateTextReport(state: CompareState): string {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ComparePdfPage() {
-  const [state, setState] = React.useState<CompareState>(INITIAL_STATE)
-  const patch = (p: Partial<CompareState>) => setState(s => ({ ...s, ...p }))
+  const store = useCompareStore()
 
   // Scroll sync refs
   const scrollRefA = React.useRef<HTMLDivElement>(null!)
@@ -56,7 +57,7 @@ export default function ComparePdfPage() {
   // ── Scroll sync ────────────────────────────────────────────────────────────
 
   React.useEffect(() => {
-    if (!state.syncScroll) return
+    if (!store.syncScroll) return
     const a = scrollRefA.current
     const b = scrollRefB.current
     if (!a || !b) return
@@ -78,31 +79,31 @@ export default function ComparePdfPage() {
       a.removeEventListener("scroll", syncFromA)
       b.removeEventListener("scroll", syncFromB)
     }
-  }, [state.syncScroll, state.step])
+  }, [store.syncScroll, store.step])
 
   // ── File loading ───────────────────────────────────────────────────────────
 
   async function loadFile(file: File, side: "A" | "B") {
     const buffer = await file.arrayBuffer()
-    const next = side === "A"
-      ? { fileA: file, bufferA: buffer }
-      : { fileB: file, bufferB: buffer }
-    // Update state — trigger compare if both are now set
-    setState(s => {
-      const merged = { ...s, ...next }
-      if (merged.bufferA && merged.bufferB) {
-        // Kick off Go comparison after this state update
-        setTimeout(() => runCompare(merged.bufferA!, merged.bufferB!), 0)
-        return { ...merged, step: "loading" }
+    if (side === "A") {
+      store.setFileA(file, buffer)
+      if (store.bufferB) {
+        store.setStep("loading")
+        setTimeout(() => runCompare(buffer, store.bufferB!), 0)
       }
-      return merged
-    })
+    } else {
+      store.setFileB(file, buffer)
+      if (store.bufferA) {
+        store.setStep("loading")
+        setTimeout(() => runCompare(store.bufferA!, buffer), 0)
+      }
+    }
   }
 
   // ── Go comparison (replaces JS text extraction + diff) ────────────────────
 
   async function runCompare(bufA: ArrayBuffer, bufB: ArrayBuffer) {
-    patch({ step: "loading" })
+    store.setStep("loading")
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const api = (window as any).electronAPI?.pdf
@@ -113,7 +114,7 @@ export default function ComparePdfPage() {
       const result = await api.compare(bufA, bufB)
 
       if (!result.success) {
-        patch({ step: "error", errorMessage: result.error })
+        store.setError(result.error)
         return
       }
 
@@ -128,20 +129,20 @@ export default function ComparePdfPage() {
         similarity:   raw.similarity,
       }
 
-      patch({ step: "ready", diffs, stats, totalPages: raw.totalPages })
+      store.setResult(diffs, stats, raw.totalPages)
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
-      patch({ step: "error", errorMessage: msg })
+      store.setError(msg)
     }
   }
 
   // ── Derived ────────────────────────────────────────────────────────────────
 
-  const bothLoaded = !!state.bufferA && !!state.bufferB
-  const isLoading  = state.step === "loading"
+  const bothLoaded = !!store.bufferA && !!store.bufferB
+  const isLoading  = store.step === "loading"
 
   function handleDownload() {
-    const text = generateTextReport(state)
+    const text = generateTextReport(store)
     const blob = new Blob([text], { type: "text/plain" })
     const url  = URL.createObjectURL(blob)
     const a    = document.createElement("a")
@@ -172,27 +173,27 @@ export default function ComparePdfPage() {
         </div>
 
         {/* Similarity badge */}
-        {state.stats && (
+        {store.stats && (
           <div className={cn(
             "flex items-center gap-2 rounded-xl px-3.5 py-2 ring-1 animate-in fade-in-0 duration-300",
-            state.stats.similarity >= 80
+            store.stats.similarity >= 80
               ? "bg-emerald-500/10 ring-emerald-500/20"
-              : state.stats.similarity >= 50
+              : store.stats.similarity >= 50
               ? "bg-amber-500/10 ring-amber-500/20"
               : "bg-red-500/10 ring-red-500/20"
           )}>
             <div className={cn(
               "text-xl font-black tabular-nums",
-              state.stats.similarity >= 80 ? "text-emerald-400"
-              : state.stats.similarity >= 50 ? "text-amber-400"
+              store.stats.similarity >= 80 ? "text-emerald-400"
+              : store.stats.similarity >= 50 ? "text-amber-400"
               : "text-red-400"
             )}>
-              {state.stats.similarity}%
+              {store.stats.similarity}%
             </div>
             <div>
               <p className="text-[11px] font-semibold text-foreground/80">Match</p>
               <p className="text-[10px] text-muted-foreground/50">
-                {state.stats.changedPages} page{state.stats.changedPages !== 1 ? "s" : ""} changed
+                {store.stats.changedPages} page{store.stats.changedPages !== 1 ? "s" : ""} changed
               </p>
             </div>
           </div>
@@ -206,18 +207,18 @@ export default function ComparePdfPage() {
         {!bothLoaded && (
           <div className="flex flex-1 flex-col justify-center animate-in fade-in-0 duration-300">
             <DropZonePair
-              fileA={state.fileA} fileB={state.fileB}
+              fileA={store.fileA} fileB={store.fileB}
               onFileA={f => loadFile(f, "A")}
               onFileB={f => loadFile(f, "B")}
-              onClearA={() => patch({ fileA: null, bufferA: null, diffs: [], stats: null, step: "idle" })}
-              onClearB={() => patch({ fileB: null, bufferB: null, diffs: [], stats: null, step: "idle" })}
+              onClearA={() => store.clearA()}
+              onClearB={() => store.clearB()}
             />
 
-            {(state.fileA || state.fileB) && (
+            {(store.fileA || store.fileB) && (
               <div className="mt-6 flex items-center justify-center gap-2 animate-in fade-in-0 duration-300">
                 <Loader2 className="h-4 w-4 animate-spin text-violet-400/60" />
                 <p className="text-sm text-muted-foreground/50">
-                  {state.fileA ? "Now drop the modified PDF →" : "← Now drop the original PDF"}
+                  {store.fileA ? "Now drop the modified PDF →" : "← Now drop the original PDF"}
                 </p>
               </div>
             )}
@@ -238,15 +239,15 @@ export default function ComparePdfPage() {
           <div className="flex flex-1 flex-col gap-4 overflow-hidden animate-in fade-in-0 slide-in-from-top-2 duration-400">
 
             <Toolbar
-              fileA={state.fileA} fileB={state.fileB}
-              currentPage={state.currentPage}  totalPages={state.totalPages}
-              scale={state.scale}              syncScroll={state.syncScroll}
-              onPagePrev={()  => patch({ currentPage: Math.max(1, state.currentPage - 1) })}
-              onPageNext={()  => patch({ currentPage: Math.min(state.totalPages, state.currentPage + 1) })}
-              onZoomIn={()    => patch({ scale: Math.min(3, state.scale + 0.25) })}
-              onZoomOut={()   => patch({ scale: Math.max(0.5, state.scale - 0.25) })}
-              onZoomReset={() => patch({ scale: 1.0 })}
-              onSyncToggle={() => patch({ syncScroll: !state.syncScroll })}
+              fileA={store.fileA} fileB={store.fileB}
+              currentPage={store.currentPage}  totalPages={store.totalPages}
+              scale={store.scale}              syncScroll={store.syncScroll}
+              onPagePrev={()  => store.setCurrentPage(Math.max(1, store.currentPage - 1))}
+              onPageNext={()  => store.setCurrentPage(Math.min(store.totalPages, store.currentPage + 1))}
+              onZoomIn={()    => store.setScale(Math.min(3, store.scale + 0.25))}
+              onZoomOut={()   => store.setScale(Math.max(0.5, store.scale - 0.25))}
+              onZoomReset={() => store.setScale(1.0)}
+              onSyncToggle={() => store.setSyncScroll(!store.syncScroll)}
             />
 
             <div className="relative flex flex-1 gap-4 overflow-hidden">
@@ -263,36 +264,36 @@ export default function ComparePdfPage() {
               )}
 
               <PdfViewer
-                buffer={state.bufferA}
+                buffer={store.bufferA}
                 side="left"
-                diffs={state.diffs}
-                currentPage={state.currentPage}
-                scale={state.scale}
-                mode={state.mode}
+                diffs={store.diffs}
+                currentPage={store.currentPage}
+                scale={store.scale}
+                mode={store.mode}
                 scrollRef={scrollRefA}
-                onLoad={n => patch({ totalPages: Math.max(n, state.totalPages) })}
+                onLoad={n => store.setTotalPages(n)}
               />
 
               <PdfViewer
-                buffer={state.bufferB}
+                buffer={store.bufferB}
                 side="right"
-                diffs={state.diffs}
-                currentPage={state.currentPage}
-                scale={state.scale}
-                mode={state.mode}
+                diffs={store.diffs}
+                currentPage={store.currentPage}
+                scale={store.scale}
+                mode={store.mode}
                 scrollRef={scrollRefB}
-                onLoad={n => patch({ totalPages: Math.max(n, state.totalPages) })}
+                onLoad={n => store.setTotalPages(n)}
               />
 
               <DiffPanel
-                diffs={state.diffs}
-                stats={state.stats}
-                mode={state.mode}
-                searchQuery={state.searchQuery}
-                currentPage={state.currentPage}
-                onModeChange={m  => patch({ mode: m })}
-                onSearchChange={q => patch({ searchQuery: q })}
-                onJumpPage={p    => patch({ currentPage: p })}
+                diffs={store.diffs}
+                stats={store.stats}
+                mode={store.mode}
+                searchQuery={store.searchQuery}
+                currentPage={store.currentPage}
+                onModeChange={m  => store.setMode(m)}
+                onSearchChange={q => store.setSearchQuery(q)}
+                onJumpPage={p    => store.setCurrentPage(p)}
                 onDownload={handleDownload}
               />
             </div>
@@ -300,10 +301,10 @@ export default function ComparePdfPage() {
         )}
 
         {/* Error */}
-        {state.step === "error" && state.errorMessage && (
+        {store.step === "error" && store.errorMessage && (
           <div className="flex items-center gap-2 rounded-xl bg-red-500/8 px-4 py-3 ring-1 ring-red-500/15">
             <AlertCircle className="h-4 w-4 text-red-500" />
-            <span className="text-sm text-red-600 dark:text-red-400">{state.errorMessage}</span>
+            <span className="text-sm text-red-600 dark:text-red-400">{store.errorMessage}</span>
           </div>
         )}
       </div>

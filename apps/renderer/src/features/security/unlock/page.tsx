@@ -20,6 +20,8 @@ import { PasswordInput }       from "./components/password-input"
 import { SuccessCard }         from "./components/success-card"
 import { AlreadyUnlockedCard } from "./components/already-unlocked-card"
 
+import { useUnlockStore } from "@/stores/use-unlock-store"
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function formatBytes(bytes: number): string {
@@ -41,15 +43,6 @@ async function isPdfEncrypted(file: File): Promise<boolean> {
   return new TextDecoder("latin1").decode(buf).includes("/Encrypt")
 }
 
-const INITIAL: UnlockState = {
-  uploadedFile: null,
-  password: "",
-  showPassword: false,
-  step: "idle",
-  errorMessage: null,
-  downloadUrl: null,
-}
-
 // ─── Trust badges ─────────────────────────────────────────────────────────────
 
 const TRUST_ITEMS = [
@@ -61,16 +54,14 @@ const TRUST_ITEMS = [
 // ─── Page ──────────────────────────────────────────────────────────────────────
 
 export default function UnlockPdfPage() {
-  const [state, setState] = React.useState<UnlockState>(INITIAL)
+  const store = useUnlockStore()
   const [isDragging, setIsDragging]     = React.useState(false)
   const [downloadName, setDownloadName] = React.useState("")
-
-  const patch = (p: Partial<UnlockState>) => setState(s => ({ ...s, ...p }))
 
   // ── File select ────────────────────────────────────────────────────────────
 
   async function handleFileSelect(file: File) {
-    patch({ step: "checking", errorMessage: null, downloadUrl: null, uploadedFile: null })
+    store.setStep("checking")
 
     const encrypted = await isPdfEncrypted(file)
     const uploadedFile: UploadedFile = {
@@ -81,28 +72,28 @@ export default function UnlockPdfPage() {
     }
 
     if (!encrypted) {
-      patch({ uploadedFile, step: "alreadyUnlocked", downloadUrl: URL.createObjectURL(file) })
+      store.setAlreadyUnlocked(uploadedFile, URL.createObjectURL(file))
     } else {
-      patch({ uploadedFile, step: "idle" })
+      store.setUploadedFile(uploadedFile)
     }
   }
 
   // ── Unlock ─────────────────────────────────────────────────────────────────
 
   async function handleUnlock() {
-    if (!state.uploadedFile || !state.password.trim()) return
-    patch({ step: "unlocking", errorMessage: null })
+    if (!store.uploadedFile || !store.password.trim()) return
+    store.setStep("unlocking")
 
     try {
-      const buffer = await state.uploadedFile.file.arrayBuffer()
+      const buffer = await store.uploadedFile.file.arrayBuffer()
       const api = window.electronAPI
       if (!api?.pdf?.unlock) throw new Error("Electron IPC not available. Run the app in Electron.")
 
-      const result = await api.pdf.unlock(buffer, state.password, state.uploadedFile.name)
+      const result = await api.pdf.unlock(buffer, store.password, store.uploadedFile.name)
       if (!result.success) throw new Error(result.error)
 
       setDownloadName(result.fileName)
-      patch({ step: "success", downloadUrl: base64ToObjectUrl(result.data) })
+      store.setResult(base64ToObjectUrl(result.data))
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "An unexpected error occurred"
       const isWrongPassword =
@@ -110,25 +101,23 @@ export default function UnlockPdfPage() {
         msg.toLowerCase().includes("incorrect") ||
         msg.toLowerCase().includes("password") ||
         msg.toLowerCase().includes("decrypt")
-      patch({
-        step: "error",
-        errorMessage: isWrongPassword ? "Incorrect password. Please try again." : `Error: ${msg}`,
-      })
+      
+      store.setError(isWrongPassword ? "Incorrect password. Please try again." : `Error: ${msg}`)
     }
   }
 
   React.useEffect(() => {
-    return () => { if (state.downloadUrl) URL.revokeObjectURL(state.downloadUrl) }
-  }, [state.downloadUrl])
+    return () => { if (store.downloadUrl) URL.revokeObjectURL(store.downloadUrl) }
+  }, [store.downloadUrl])
 
   // ── Derived ────────────────────────────────────────────────────────────────
 
-  const isChecking    = state.step === "checking"
-  const isLoading     = state.step === "unlocking"
-  const isSuccess     = state.step === "success"
-  const isAlreadyOpen = state.step === "alreadyUnlocked"
-  const hasError      = state.step === "error"
-  const canUnlock     = !!state.uploadedFile?.isEncrypted && state.password.trim().length > 0 && !isLoading
+  const isChecking    = store.step === "checking"
+  const isLoading     = store.step === "unlocking"
+  const isSuccess     = store.step === "success"
+  const isAlreadyOpen = store.step === "alreadyUnlocked"
+  const hasError      = store.step === "error"
+  const canUnlock     = !!store.uploadedFile?.isEncrypted && store.password.trim().length > 0 && !isLoading
 
   // ─────────────────────────────────────────────────────────────────────────
 
@@ -202,34 +191,31 @@ export default function UnlockPdfPage() {
             )}
 
             {/* ── Already unlocked ── */}
-            {isAlreadyOpen && state.uploadedFile && state.downloadUrl && (
+            {isAlreadyOpen && store.uploadedFile && store.downloadUrl && (
               <div className="space-y-4 animate-in fade-in-0 slide-in-from-bottom-3 duration-400">
                 <FileCard
-                  uploadedFile={state.uploadedFile}
+                  uploadedFile={store.uploadedFile}
                   onReplace={() => {
-                    if (state.downloadUrl) URL.revokeObjectURL(state.downloadUrl)
-                    setState(INITIAL)
+                    store.reset()
                   }}
                 />
                 <AlreadyUnlockedCard
-                  fileName={state.uploadedFile.name}
-                  downloadUrl={state.downloadUrl}
+                  fileName={store.uploadedFile.name}
+                  downloadUrl={store.downloadUrl}
                   onReset={() => {
-                    if (state.downloadUrl) URL.revokeObjectURL(state.downloadUrl)
-                    setState(INITIAL)
+                    store.reset()
                   }}
                 />
               </div>
             )}
 
             {/* ── Success ── */}
-            {isSuccess && state.downloadUrl && (
+            {isSuccess && store.downloadUrl && (
               <SuccessCard
-                fileName={downloadName || (state.uploadedFile?.name ?? "unlocked.pdf")}
-                downloadUrl={state.downloadUrl}
+                fileName={downloadName || (store.uploadedFile?.name ?? "unlocked.pdf")}
+                downloadUrl={store.downloadUrl}
                 onReset={() => {
-                  if (state.downloadUrl) URL.revokeObjectURL(state.downloadUrl)
-                  setState(INITIAL)
+                  store.reset()
                 }}
               />
             )}
@@ -250,17 +236,15 @@ export default function UnlockPdfPage() {
                       <StepLabel
                         n={1}
                         active
-                        done={!!state.uploadedFile}
+                        done={!!store.uploadedFile}
                         text="Upload your PDF"
                         hint="Drag & drop or click to browse"
                       />
                       <div className="mt-4">
-                        {state.uploadedFile ? (
+                        {store.uploadedFile ? (
                           <FileCard
-                            uploadedFile={state.uploadedFile}
-                            onReplace={() =>
-                              patch({ uploadedFile: null, password: "", errorMessage: null, step: "idle", downloadUrl: null })
-                            }
+                            uploadedFile={store.uploadedFile}
+                            onReplace={() => store.reset()}
                           />
                         ) : (
                           <DropZone
@@ -274,25 +258,25 @@ export default function UnlockPdfPage() {
                     </div>
 
                     {/* ─ Steps 2 + 3: only shown after file upload ─ */}
-                    {state.uploadedFile?.isEncrypted && (
+                    {store.uploadedFile?.isEncrypted && (
                       <>
                         {/* ─ Step 2: Password ─ */}
                         <div className="p-6 animate-in fade-in-0 slide-in-from-top-2 duration-300">
                           <StepLabel
                             n={2}
                             active
-                            done={state.password.trim().length > 0 && !hasError}
+                            done={store.password.trim().length > 0 && !hasError}
                             text="Enter password"
                             hint="The password used to protect this PDF"
                           />
                           <div className="mt-4">
                             <PasswordInput
-                              value={state.password}
-                              onChange={val => patch({ password: val, errorMessage: null, step: "idle" })}
-                              showPassword={state.showPassword}
-                              onToggleShow={() => patch({ showPassword: !state.showPassword })}
+                              value={store.password}
+                              onChange={val => store.setPassword(val)}
+                              showPassword={store.showPassword}
+                              onToggleShow={() => store.setShowPassword(!store.showPassword)}
                               hasError={hasError}
-                              errorMessage={state.errorMessage}
+                              errorMessage={store.errorMessage}
                               disabled={isLoading}
                               onSubmit={handleUnlock}
                             />
