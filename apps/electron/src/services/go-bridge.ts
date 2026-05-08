@@ -29,6 +29,13 @@ interface GoCommand {
   // Split operations
   pageRanges?: string[];
   mergeOutput?: boolean;
+  // OCR operations
+  languages?: string[];
+  dpi?: number;
+  enableGpu?: boolean;
+  exportFormat?: string;
+  ocrData?: string;
+  edits?: string;
 }
 
 interface GoResponse {
@@ -36,7 +43,12 @@ interface GoResponse {
   outputPath?: string;
   error?: string;
   data?: any;
+  // Streaming event fields
+  type?: string;   // "progress" | "page-result" | "page-image" | "complete" | "error"
+  jobId?: string;
 }
+
+type StreamingCallback = (event: GoResponse) => void;
 
 // ─── GoBridge ────────────────────────────────────────────────────────────────
 
@@ -49,6 +61,10 @@ class GoBridge {
   private proc: childProcess.ChildProcess | null = null;
   private pendingResolvers: Array<(resp: GoResponse) => void> = [];
   private buffer = "";
+  
+  // Streaming support: when set, intermediate events go to this callback
+  private streamingCallback: StreamingCallback | null = null;
+  private streamingResolve: ((resp: GoResponse) => void) | null = null;
 
   private get binaryPath(): string {
     const isDev = process.env.NODE_ENV === "development";
@@ -92,8 +108,7 @@ class GoBridge {
         if (!trimmed) continue;
         try {
           const resp: GoResponse = JSON.parse(trimmed);
-          const resolve = this.pendingResolvers.shift();
-          if (resolve) resolve(resp);
+          this.handleResponse(resp);
         } catch {
           console.error("[pdf-engine] bad JSON from stdout:", trimmed);
         }
@@ -108,7 +123,41 @@ class GoBridge {
         resolve({ success: false, error: `Engine crashed (exit ${code})` });
       }
       this.pendingResolvers = [];
+      // Also reject streaming resolver
+      if (this.streamingResolve) {
+        this.streamingResolve({ success: false, error: `Engine crashed (exit ${code})` });
+        this.streamingResolve = null;
+        this.streamingCallback = null;
+      }
     });
+  }
+
+  /** Route a parsed response to the correct handler */
+  private handleResponse(resp: GoResponse): void {
+    // Check if this is a streaming event
+    if (this.streamingCallback && resp.type) {
+      if (resp.type === "complete" || resp.type === "error") {
+        // Final event — resolve the streaming promise
+        const resolve = this.streamingResolve;
+        this.streamingResolve = null;
+        this.streamingCallback = null;
+        if (resolve) {
+          resolve({
+            success: resp.type === "complete",
+            data: resp.data,
+            error: resp.error,
+          });
+        }
+      } else {
+        // Intermediate event — forward to callback
+        this.streamingCallback(resp);
+      }
+      return;
+    }
+    
+    // Regular one-shot response
+    const resolve = this.pendingResolvers.shift();
+    if (resolve) resolve(resp);
   }
 
   /** Send a command and await exactly one response. */
@@ -133,6 +182,34 @@ class GoBridge {
     });
   }
 
+  /**
+   * Send a command that produces multiple streaming responses.
+   * Intermediate events (progress, page-result) are forwarded to the callback.
+   * The promise resolves when a "complete" or "error" event is received.
+   */
+  sendStreaming(cmd: GoCommand, onEvent: StreamingCallback): Promise<GoResponse> {
+    return new Promise((resolve, reject) => {
+      try {
+        this.ensureRunning();
+      } catch (err) {
+        reject(err);
+        return;
+      }
+
+      this.streamingCallback = onEvent;
+      this.streamingResolve = resolve;
+
+      const json = JSON.stringify(cmd) + "\n";
+      this.proc!.stdin!.write(json, (err) => {
+        if (err) {
+          this.streamingCallback = null;
+          this.streamingResolve = null;
+          reject(new Error(`Failed to write to pdf-engine stdin: ${err.message}`));
+        }
+      });
+    });
+  }
+
   /** Gracefully shut down the Go process. */
   shutdown(): void {
     this.proc?.stdin?.end();
@@ -142,3 +219,4 @@ class GoBridge {
 
 // Export a single shared instance
 export const goBridge = new GoBridge();
+

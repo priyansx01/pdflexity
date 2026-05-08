@@ -134,5 +134,50 @@ contextBridge.exposeInMainWorld("electronAPI", {
       ): Promise<{ success: true; data: string; fileName: string; marksApplied: number; pagesAffected: number[] } | { success: false; error: string }> =>
         ipcRenderer.invoke("pdf:redact", new Uint8Array(buffer), fileName, marks),
     },
+
+    // OCR operations
+    ocr: {
+      start: (
+        buffer: ArrayBuffer,
+        fileName: string,
+        languages: string[],
+        dpi: number
+      ): Promise<{ success: true; jobId: string; data: any } | { success: false; error: string }> =>
+        ipcRenderer.invoke("pdf:ocr-start", new Uint8Array(buffer), fileName, languages, dpi),
+
+      cancel: (
+        jobId: string
+      ): Promise<{ success: boolean; error?: string }> =>
+        ipcRenderer.invoke("pdf:ocr-cancel", jobId),
+
+      renderPage: (
+        buffer: ArrayBuffer,
+        page: number,
+        scale: number
+      ): Promise<{ success: true; data: any } | { success: false; error: string }> =>
+        ipcRenderer.invoke("pdf:ocr-render-page", new Uint8Array(buffer), page, scale),
+
+      export: (
+        buffer: ArrayBuffer,
+        fileName: string,
+        format: string,
+        ocrData: any,
+        edits?: any
+      ): Promise<{ success: true; data: string; fileName: string } | { success: false; error: string }> =>
+        ipcRenderer.invoke("pdf:ocr-export", new Uint8Array(buffer), fileName, format, ocrData, edits),
+
+      onProgress: (callback: (_event: any, data: any) => void): void => {
+        ipcRenderer.on("pdf:ocr-progress", callback);
+      },
+
+      onPageResult: (callback: (_event: any, data: any) => void): void => {
+        ipcRenderer.on("pdf:ocr-page-result", callback);
+      },
+
+      removeListeners: (): void => {
+        ipcRenderer.removeAllListeners("pdf:ocr-progress");
+        ipcRenderer.removeAllListeners("pdf:ocr-page-result");
+      },
+    },
   },
 });

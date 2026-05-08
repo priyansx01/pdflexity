@@ -99,6 +99,14 @@ type Command struct {
 	CaseSensitive bool            `json:"caseSensitive,omitempty"`
 	Regex         bool            `json:"regex,omitempty"`
 	Scale         float64         `json:"scale,omitempty"`
+
+	// OCR operations
+	Languages    []string `json:"languages,omitempty"`
+	DPI          int      `json:"dpi,omitempty"`
+	EnableGPU    bool     `json:"enableGpu,omitempty"`
+	ExportFormat string   `json:"exportFormat,omitempty"`
+	OCRData      string   `json:"ocrData,omitempty"`
+	Edits        string   `json:"edits,omitempty"`
 }
 
 // Response is the JSON-RPC result written to stdout.
@@ -107,4 +115,88 @@ type Response struct {
 	OutputPath string `json:"outputPath,omitempty"`
 	Error      string `json:"error,omitempty"`
 	Data       any    `json:"data,omitempty"` // Flexible data payload for certInfo, verify, etc.
+}
+
+// ─── OCR Types ──────────────────────────────────────────────────────────────
+
+// OCRStreamEvent is used for streaming OCR progress to the frontend.
+// Multiple events are sent per job, one JSON line at a time.
+type OCRStreamEvent struct {
+	Type        string   `json:"type"`                       // "progress" | "page-result" | "page-image" | "complete" | "error"
+	JobID       string   `json:"jobId,omitempty"`
+	Status      string   `json:"status,omitempty"`           // OCR step name
+	CurrentPage int      `json:"currentPage,omitempty"`
+	TotalPages  int      `json:"totalPages,omitempty"`
+	PageResult  *OCRPage `json:"pageResult,omitempty"`
+	PageImage   *PageImage `json:"pageImage,omitempty"`
+	Data        any      `json:"data,omitempty"`
+	Error       string   `json:"error,omitempty"`
+	Confidence  float64  `json:"overallConfidence,omitempty"`
+	Languages   []string `json:"detectedLanguages,omitempty"`
+}
+
+type BBox struct {
+	X      float64 `json:"x"`
+	Y      float64 `json:"y"`
+	Width  float64 `json:"width"`
+	Height float64 `json:"height"`
+}
+
+type OCRTextBlock struct {
+	ID         string  `json:"id"`
+	Text       string  `json:"text"`
+	BBox       BBox    `json:"bbox"`
+	Confidence float64 `json:"confidence"`
+	BlockType  string  `json:"type"`
+	FontSize   float64 `json:"fontSize"`
+	FontWeight string  `json:"fontWeight"`
+	FontStyle  string  `json:"fontStyle"`
+	Alignment  string  `json:"alignment"`
+	LineHeight float64 `json:"lineHeight"`
+	Color      string  `json:"color"`
+}
+
+type OCRTableCell struct {
+	Row        int     `json:"row"`
+	Col        int     `json:"col"`
+	RowSpan    int     `json:"rowSpan"`
+	ColSpan    int     `json:"colSpan"`
+	Text       string  `json:"text"`
+	BBox       BBox    `json:"bbox"`
+	Confidence float64 `json:"confidence"`
+}
+
+type OCRTable struct {
+	ID         string         `json:"id"`
+	BBox       BBox           `json:"bbox"`
+	Rows       int            `json:"rows"`
+	Cols       int            `json:"cols"`
+	Cells      []OCRTableCell `json:"cells"`
+	Confidence float64        `json:"confidence"`
+}
+
+type OCRImageRegion struct {
+	ID        string `json:"id"`
+	BBox      BBox   `json:"bbox"`
+	ImageData string `json:"imageData,omitempty"`
+}
+
+type OCRPage struct {
+	Page            int              `json:"page"`
+	Width           float64          `json:"width"`
+	Height          float64          `json:"height"`
+	TextBlocks      []OCRTextBlock   `json:"textBlocks"`
+	Tables          []OCRTable       `json:"tables"`
+	Images          []OCRImageRegion `json:"images"`
+	Language        string           `json:"language"`
+	AvgConfidence   float64          `json:"avgConfidence"`
+	ProcessingTime  int              `json:"processingTimeMs"`
+	PageImageBase64 string           `json:"pageImageBase64,omitempty"`
+}
+
+type PageImage struct {
+	Page        int    `json:"page"`
+	ImageBase64 string `json:"imageBase64"`
+	Width       int    `json:"width"`
+	Height      int    `json:"height"`
 }

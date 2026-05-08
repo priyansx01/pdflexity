@@ -21,6 +21,13 @@ export const Channels = {
   PDF_REDACT_SEARCH: "pdf:redact-search",
   PDF_REDACT_PREVIEW: "pdf:redact-preview",
   PDF_REDACT:       "pdf:redact",
+  // OCR operations
+  PDF_OCR_START:       "pdf:ocr-start",
+  PDF_OCR_CANCEL:      "pdf:ocr-cancel",
+  PDF_OCR_PROGRESS:    "pdf:ocr-progress",
+  PDF_OCR_PAGE_RESULT: "pdf:ocr-page-result",
+  PDF_OCR_RENDER_PAGE: "pdf:ocr-render-page",
+  PDF_OCR_EXPORT:      "pdf:ocr-export",
 } as const
 
 export type ChannelName = (typeof Channels)[keyof typeof Channels]

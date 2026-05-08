@@ -35,6 +35,14 @@ func Route(enc *json.Encoder, cmd model.Command) {
 		handleRedactPreview(enc, cmd)
 	case "redact":
 		handleRedact(enc, cmd)
+	case "ocr-start":
+		handleOCRStart(enc, cmd)
+	case "ocr-cancel":
+		handleOCRCancel(enc, cmd)
+	case "ocr-render-page":
+		handleOCRRenderPage(enc, cmd)
+	case "ocr-export":
+		handleOCRExport(enc, cmd)
 	default:
 		writeError(enc, fmt.Sprintf("unknown operation: %q", cmd.Op))
 	}
