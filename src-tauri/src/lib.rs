@@ -1,6 +1,7 @@
 mod commands;
 mod go_bridge;
 mod go_model;
+mod menu;
 mod result;
 mod util;
 
@@ -24,6 +25,15 @@ pub fn run() {
             // holder so commands can fetch it, and log the resolved binary path.
             go_bridge::log_engine_path(app.handle());
             app.manage(BridgeHolder::new());
+
+            // Native menu (Edit / View / Help).
+            menu::build(app.handle());
+
+            // Show the main window now (config sets visible:false to avoid a
+            // white flash before the webview is ready).
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+            }
 
             Ok(())
         })

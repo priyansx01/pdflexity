@@ -52,13 +52,35 @@ A prebuilt Windows binary is committed under `src-tauri/bin/`.
 
 ## 🗺️ Migration status
 
-See the migration plan in the source repo. Phases:
 - [x] Scaffold repo
-- [ ] Tauri init + Rust backend
-- [ ] Port GoBridge to Rust
-- [ ] Port IPC handlers
-- [ ] Frontend adapter (electronAPI → tauri)
-- [ ] OCR/Python bundling
-- [ ] Packaging + auto-update
+- [x] Tauri init + Rust backend
+- [x] Port GoBridge to Rust
+- [x] Port IPC handlers (19 commands)
+- [x] Frontend adapter (electronAPI → tauri)
+- [x] Native menu (Edit/View/Help) + window polish
+- [x] Engine resource bundling (dev=prod path)
+- [ ] OCR/Python bundling (blocked: needs Python 3.11/3.12; see `services/ocr-engine/BUNDLING.md`)
+- [ ] Auto-update wiring (needs signing key + release feed)
+- [ ] Drag region + external-link polish (frontend `data-tauri-drag-region`)
+
+## 🔌 Window / menu / auto-update (Step 14 notes)
+
+**Done:** native menu (`src-tauri/src/menu.rs`), dark window background,
+show-after-init to avoid white flash (`visible:false` + `show()` in setup),
+and the `open_external` command (opens http/https in the default browser).
+
+**Follow-ups (need infrastructure):**
+
+- **Auto-updater** — add `tauri-plugin-updater`, generate a signing keypair
+  (`tauri signer generate -w ~/.tauri/pdflexity.key`), set `TAURI_SIGNING_PRIVATE_KEY`
+  at build time, add `plugins.updater` (pubkey + endpoints) to `tauri.conf.json`,
+  publish a `latest.json` manifest per release, and call the updater from the
+  frontend (`@tauri-apps/plugin-updater`).
+- **Drag region** — the UI uses Electron's CSS `-webkit-app-region: drag`
+  (`.app-drag`). In Tauri, replace with the `data-tauri-drag-region` attribute on
+  the same elements (or use a borderless `titleBarStyle: Overlay` window).
+- **External links** — arbitrary `<a target="_blank">` clicks should route through
+  `openExternal`; add a frontend click handler, or build the window in code with
+  `WebviewWindowBuilder::on_navigation` to deny + delegate http(s) URLs.
 
 License: MIT
