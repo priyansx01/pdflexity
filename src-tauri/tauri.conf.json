@@ -16,13 +16,15 @@
         "title": "PDFlexity",
         "width": 1280,
         "height": 800,
-        "minWidth": 800,
-        "minHeight": 600,
+        "minWidth": 960,
+        "minHeight": 640,
         "resizable": true,
         "center": true,
         "fullscreen": false,
+        "decorations": false,
         "visible": false,
-        "backgroundColor": "#0f0f0f"
+        "backgroundColor": "#111112",
+        "dragDropEnabled": true
       }
     ],
     "security": {

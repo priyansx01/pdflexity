@@ -1,7 +1,6 @@
 mod commands;
 mod go_bridge;
 mod go_model;
-mod menu;
 mod result;
 mod util;
 
@@ -11,6 +10,9 @@ use tauri::Manager;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_fs::init())
         .setup(|app| {
             if cfg!(debug_assertions) {
                 app.handle().plugin(
@@ -26,11 +28,9 @@ pub fn run() {
             go_bridge::log_engine_path(app.handle());
             app.manage(BridgeHolder::new());
 
-            // Native menu (Edit / View / Help).
-            menu::build(app.handle());
-
             // Show the main window now (config sets visible:false to avoid a
-            // white flash before the webview is ready).
+            // white flash before the webview is ready). Frameless window — the
+            // renderer draws its own TitleBar (drag region via data-tauri-drag-region).
             if let Some(window) = app.get_webview_window("main") {
                 let _ = window.show();
             }
