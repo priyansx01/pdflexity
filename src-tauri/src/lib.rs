@@ -2,6 +2,7 @@ mod commands;
 mod go_bridge;
 mod go_model;
 mod result;
+mod util;
 
 use go_bridge::BridgeHolder;
 use tauri::Manager;

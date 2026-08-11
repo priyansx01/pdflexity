@@ -108,6 +108,18 @@ impl Command {
             edits: None,
         }
     }
+
+    /// Builder: set `inputPath` from a path.
+    pub fn input_path_opt(mut self, p: impl AsRef<std::path::Path>) -> Self {
+        self.input_path = Some(p.as_ref().to_string_lossy().into_owned());
+        self
+    }
+
+    /// Builder: set `outputPath` from a path.
+    pub fn output_path_opt(mut self, p: impl AsRef<std::path::Path>) -> Self {
+        self.output_path = Some(p.as_ref().to_string_lossy().into_owned());
+        self
+    }
 }
 
 /// The JSON-RPC response read from the Go engine's stdout (one-shot ops).

@@ -73,6 +73,8 @@ struct Inner {
     stdin: ChildStdin,
     /// Resolver for the single in-flight op (one-shot or streaming).
     pending: Option<oneshot::Sender<Response>>,
+    /// Job id to stamp onto OCR events emitted during a streaming op.
+    streaming_job_id: Option<String>,
     app: AppHandle,
 }
 
@@ -88,8 +90,13 @@ impl GoBridge {
 
     /// Send a streaming command (OCR). Intermediate events are emitted as Tauri
     /// events; the future resolves with a `Response` derived from the terminal
-    /// `complete` / `error` event.
-    pub async fn send_streaming(&self, cmd: Command) -> Result<Response> {
+    /// `complete` / `error` event. `job_id` is stamped onto each emitted event
+    /// so the frontend can correlate (matches Electron's behavior).
+    pub async fn send_streaming(&self, cmd: Command, job_id: String) -> Result<Response> {
+        {
+            let mut inner = self.inner.lock().await;
+            inner.streaming_job_id = Some(job_id.clone());
+        }
         let rx = self.dispatch(cmd).await?;
         tokio::time::timeout(Duration::from_secs(OCR_TIMEOUT_SECS), rx)
             .await
@@ -166,6 +173,7 @@ impl GoBridge {
                 child,
                 stdin,
                 pending: None,
+                streaming_job_id: None,
                 app: app.clone(),
             }),
         });
@@ -234,9 +242,17 @@ async fn reader_loop(bridge: Arc<GoBridge>, stdout: ChildStdout) {
 /// Forward OCR events to the frontend; resolve the in-flight op on terminal.
 async fn handle_stream_event(bridge: &Arc<GoBridge>, event: OcrStreamEvent) {
     let terminal = event.is_terminal();
-    let emit_value = serde_json::to_value(&event).unwrap_or(Value::Null);
+
+    let mut emit_value = serde_json::to_value(&event).unwrap_or(Value::Null);
 
     let mut inner = bridge.inner.lock().await;
+
+    // Stamp the active job id onto emitted events (frontend correlates by it).
+    if let Some(job_id) = &inner.streaming_job_id {
+        if let Some(obj) = emit_value.as_object_mut() {
+            obj.insert("jobId".to_string(), Value::String(job_id.clone()));
+        }
+    }
 
     match event.kind.as_str() {
         "progress" => {
@@ -267,6 +283,7 @@ async fn handle_stream_event(bridge: &Arc<GoBridge>, event: OcrStreamEvent) {
         if let Some(tx) = inner.pending.take() {
             let _ = tx.send(resp);
         }
+        inner.streaming_job_id = None;
     }
 }
 
