@@ -209,3 +209,74 @@ pub struct RedactionMark {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub label_color: Option<String>,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The Go engine reads `Command` with `json:"camelCase"` tags. Our serde
+    /// config must produce identical keys or the engine silently ignores fields.
+    #[test]
+    fn command_serializes_to_go_camel_case_keys() {
+        let cmd = Command {
+            password: Some("s3cr3t".into()),
+            page_ranges: Some(vec!["1-3".into(), "5".into()]),
+            merge_output: Some(true),
+            input_path_b: Some("/tmp/b.pdf".into()),
+            ..Command::new("unlock")
+                .input_path_opt("/tmp/a.pdf")
+                .output_path_opt("/tmp/out.pdf")
+        };
+        let json = serde_json::to_value(&cmd).unwrap();
+        let obj = json.as_object().expect("command is object");
+
+        assert_eq!(obj["op"], "unlock");
+        assert_eq!(obj["inputPath"], "/tmp/a.pdf");
+        assert_eq!(obj["outputPath"], "/tmp/out.pdf");
+        assert_eq!(obj["inputPathB"], "/tmp/b.pdf");
+        assert_eq!(obj["password"], "s3cr3t");
+        assert_eq!(obj["pageRanges"], serde_json::json!(["1-3", "5"]));
+        assert_eq!(obj["mergeOutput"], true);
+
+        // Optional None fields must be omitted (Go uses omitempty).
+        assert!(obj.get("certPath").is_none());
+        assert!(obj.get("marks").is_none());
+        assert!(obj.get("inputPaths").is_none());
+    }
+
+    #[test]
+    fn merge_command_uses_input_paths_array() {
+        let cmd = Command {
+            input_paths: Some(vec!["/a.pdf".into(), "/b.pdf".into()]),
+            ..Command::new("merge").output_path_opt("/m.pdf")
+        };
+        let json = serde_json::to_value(&cmd).unwrap();
+        assert_eq!(json["op"], "merge");
+        assert_eq!(json["inputPaths"], serde_json::json!(["/a.pdf", "/b.pdf"]));
+        assert_eq!(json["outputPath"], "/m.pdf");
+    }
+
+    #[test]
+    fn response_deserializes_go_output() {
+        let resp: Response = serde_json::from_str(r#"{"success":true,"outputPath":"","data":null}"#).unwrap();
+        assert!(resp.success);
+        let resp: Response = serde_json::from_str(r#"{"success":false,"error":"boom"}"#).unwrap();
+        assert!(!resp.success);
+        assert_eq!(resp.error.as_deref(), Some("boom"));
+    }
+
+    #[test]
+    fn ocr_event_terminal_detection() {
+        assert!(OcrStreamEvent { kind: "complete".into(), ..empty_event() }.is_terminal());
+        assert!(OcrStreamEvent { kind: "error".into(), ..empty_event() }.is_terminal());
+        assert!(!OcrStreamEvent { kind: "progress".into(), ..empty_event() }.is_terminal());
+    }
+
+    fn empty_event() -> OcrStreamEvent {
+        OcrStreamEvent {
+            kind: String::new(), job_id: None, status: None, current_page: None,
+            total_pages: None, page_result: None, page_image: None, data: None,
+            error: None, overall_confidence: None, detected_languages: None,
+        }
+    }
+}

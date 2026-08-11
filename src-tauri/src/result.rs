@@ -133,3 +133,36 @@ pub struct SignOptions {
     #[serde(default)]
     pub file_name: Option<String>,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ok_file_result_has_expected_shape() {
+        let v = serde_json::to_value(OpResult::ok_file("AAAA", "out.pdf")).unwrap();
+        assert_eq!(v["success"], true);
+        assert_eq!(v["data"], "AAAA");
+        assert_eq!(v["fileName"], "out.pdf");
+        assert!(v.get("error").is_none());
+    }
+
+    #[test]
+    fn error_result_has_message_only() {
+        let v = serde_json::to_value(OpResult::err("nope")).unwrap();
+        assert_eq!(v["success"], false);
+        assert_eq!(v["error"], "nope");
+        assert!(v.get("data").is_none());
+    }
+
+    #[test]
+    fn split_multiple_result_shape() {
+        let v = serde_json::to_value(
+            OpResult::ok(serde_json::json!([{"name": "a.pdf", "data": "AA=="}])).set_multiple(),
+        )
+        .unwrap();
+        assert_eq!(v["success"], true);
+        assert_eq!(v["isMultiple"], true);
+        assert!(v["data"].is_array());
+    }
+}

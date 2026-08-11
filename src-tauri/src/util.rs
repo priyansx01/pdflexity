@@ -68,3 +68,28 @@ fn short_uuid() -> String {
         .unwrap_or(0);
     format!("{:x}", nanos)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn base64_round_trips_arbitrary_bytes() {
+        for payload in [&b""[..], b"a", b"hello world", &[42u8; 4096][..]] {
+            let encoded = encode_b64(payload);
+            let decoded = decode_b64(&encoded).unwrap();
+            assert_eq!(decoded, payload);
+        }
+    }
+
+    #[tokio::test]
+    async fn temp_dir_is_created_and_cleaned() {
+        let dir = make_temp_dir("test").await.unwrap();
+        assert!(dir.exists());
+        write_file(&dir, "f.txt", b"hi").await.unwrap();
+        let back = read_file(&dir.join("f.txt")).await.unwrap();
+        assert_eq!(back, b"hi");
+        cleanup(&dir).await;
+        assert!(!dir.exists());
+    }
+}
