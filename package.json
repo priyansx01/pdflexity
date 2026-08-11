@@ -4,7 +4,7 @@
   "private": true,
   "description": "Privacy-first PDF toolkit — Tauri + Rust + Go engine",
   "scripts": {
-    "dev": "pnpm --filter renderer dev",
+    "dev": "tauri dev",
     "build": "pnpm --filter renderer build",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",

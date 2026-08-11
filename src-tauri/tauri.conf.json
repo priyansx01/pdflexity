@@ -6,8 +6,8 @@
   "build": {
     "frontendDist": "../apps/renderer/out",
     "devUrl": "http://localhost:3100",
-    "beforeDevCommand": "pnpm dev",
-    "beforeBuildCommand": "pnpm build"
+    "beforeDevCommand": "pnpm --filter renderer dev",
+    "beforeBuildCommand": "pnpm --filter renderer build"
   },
   "app": {
     "withGlobalTauri": false,
