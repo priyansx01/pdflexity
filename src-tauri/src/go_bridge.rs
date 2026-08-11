@@ -131,7 +131,7 @@ impl GoBridge {
 impl GoBridge {
     /// Spawn the engine binary and start the stdout reader task.
     pub fn spawn(app: AppHandle) -> Result<Arc<Self>> {
-        let binary = resolve_engine_path(&app)?;
+        let binary = resolve_engine_path(&app)?;;
         if !binary.exists() {
             return Err(anyhow!(
                 "PDF engine binary not found at: {}\nBuild it with: cd services/pdf-engine && go build -o ../../src-tauri/bin/pdflexity-engine{} ./cmd/pdflexity-engine/",
@@ -304,6 +304,19 @@ impl Inner {
     /// True if the child process is still running.
     fn is_alive(&mut self) -> bool {
         matches!(self.child.try_wait(), Ok(None))
+    }
+}
+
+/// Log where the engine binary is expected to be found (dev/prod). Validates
+/// path resolution at startup without spawning the process.
+pub fn log_engine_path(app: &AppHandle) {
+    match resolve_engine_path(app) {
+        Ok(p) => log::info!(
+            "PDF engine path: {} (exists={})",
+            p.display(),
+            p.exists()
+        ),
+        Err(e) => log::warn!("PDF engine path resolution failed: {e:#}"),
     }
 }
 

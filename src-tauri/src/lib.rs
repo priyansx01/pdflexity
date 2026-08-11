@@ -21,7 +21,8 @@ pub fn run() {
 
             // The PDF engine is spawned lazily on first PDF/OCR command
             // (from within the async runtime). Here we just register the
-            // holder so commands can fetch it.
+            // holder so commands can fetch it, and log the resolved binary path.
+            go_bridge::log_engine_path(app.handle());
             app.manage(BridgeHolder::new());
 
             Ok(())
