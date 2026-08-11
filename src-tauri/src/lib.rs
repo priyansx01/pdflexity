@@ -1,6 +1,10 @@
 mod commands;
+mod go_bridge;
 mod go_model;
 mod result;
+
+use go_bridge::BridgeHolder;
+use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -13,6 +17,12 @@ pub fn run() {
                         .build(),
                 )?;
             }
+
+            // The PDF engine is spawned lazily on first PDF/OCR command
+            // (from within the async runtime). Here we just register the
+            // holder so commands can fetch it.
+            app.manage(BridgeHolder::new());
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
