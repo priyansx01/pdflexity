@@ -4,6 +4,7 @@ import { Inter } from "next/font/google";
 import { cn } from "@/lib/utils";
 import { Sidebar } from "@/components/sidebar/sidebar";
 import { ThemeProvider } from "@/components/theme-provider";
+import { BackendProvider } from "@/components/backend-provider";
 
 // Inter — the gold standard for premium desktop applications
 // Used by: Figma, Linear, Notion, Vercel, GitHub
@@ -24,14 +25,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={cn("font-sans", inter.variable)} suppressHydrationWarning>
       <body className="flex h-screen overflow-hidden antialiased">
         <ThemeProvider attribute="class" defaultTheme="dark" disableTransitionOnChange>
-          <Sidebar />
-          <div className="flex flex-1 flex-col overflow-hidden">
-            {/* Drag strip — mirrors sidebar's app-drag h-8, makes full title bar draggable */}
-            <div className="app-drag h-8 w-full shrink-0 bg-background" />
-            <main className="flex flex-1 flex-col overflow-hidden bg-background text-foreground">
-              {children}
-            </main>
-          </div>
+          <BackendProvider>
+            <Sidebar />
+            <div className="flex flex-1 flex-col overflow-hidden">
+              {/* Drag strip — mirrors sidebar's app-drag h-8, makes full title bar draggable */}
+              <div className="app-drag h-8 w-full shrink-0 bg-background" />
+              <main className="flex flex-1 flex-col overflow-hidden bg-background text-foreground">
+                {children}
+              </main>
+            </div>
+          </BackendProvider>
         </ThemeProvider>
       </body>
     </html>
