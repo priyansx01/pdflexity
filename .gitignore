@@ -1,0 +1,22 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+.next/
+out/
+dist/
+target/
+
+# Tauri
+src-tauri/target/
+src-tauri/gen/
+
+# Go engine build artifacts (binaries are committed under src-tauri/bin)
+services/pdf-engine/pdflexity-engine
+services/pdf-engine/pdflexity-engine.exe
+
+# Env / logs
+.env
+.env.local
+*.log

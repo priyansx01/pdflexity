@@ -1,0 +1,22 @@
+{
+  "name": "pdflexity-tauri",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Privacy-first PDF toolkit — Tauri + Rust + Go engine",
+  "scripts": {
+    "dev": "pnpm --filter renderer dev",
+    "build": "pnpm --filter renderer build",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build",
+    "lint": "pnpm --filter renderer lint",
+    "typecheck": "pnpm --filter renderer typecheck"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  }
+}
