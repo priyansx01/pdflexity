@@ -12,139 +12,168 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* Electron frameless window — drag region */
-.app-drag {
-  -webkit-app-region: drag;
-}
-.app-no-drag {
-  -webkit-app-region: no-drag;
-}
+/* Legacy Electron drag region (retained until the frameless TitleBar lands) */
+.app-drag { -webkit-app-region: drag; }
+.app-no-drag { -webkit-app-region: no-drag; }
 
 /* Shake animation for error states */
 @keyframes shake {
   0%, 100% { transform: translateX(0); }
-  15%       { transform: translateX(-5px); }
-  30%       { transform: translateX(5px); }
-  45%       { transform: translateX(-4px); }
-  60%       { transform: translateX(4px); }
-  75%       { transform: translateX(-2px); }
-  90%       { transform: translateX(2px); }
+  15%      { transform: translateX(-5px); }
+  30%      { transform: translateX(5px); }
+  45%      { transform: translateX(-4px); }
+  60%      { transform: translateX(4px); }
+  75%      { transform: translateX(-2px); }
+  90%      { transform: translateX(2px); }
 }
 
+/* ──────────────────────────────────────────────────────────────────────────
+   Graphite & Ember design tokens (accent = EMERALD per project decision).
+   Dark is the default theme. Existing shadcn token names are reassigned to the
+   Graphite palette so legacy components adopt the new look during the redesign;
+   new shell components use the explicit --ember / --rail / --surface tokens.
+   ────────────────────────────────────────────────────────────────────────── */
+
 @theme inline {
+  /* Fonts */
   --font-display: var(--font-display);
   --font-body: var(--font-body);
   --font-heading: var(--font-display);
   --font-sans: var(--font-body);
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
-  --color-ring: var(--ring);
-  --color-input: var(--input);
-  --color-border: var(--border);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
-  --color-card: var(--card);
-  --color-foreground: var(--foreground);
+
+  /* Tailwind color utility mappings */
   --color-background: var(--background);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* New Graphite spec tokens */
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-rail: var(--rail);
+  --color-hairline: var(--hairline);
+  --color-ember: var(--ember);
+  --color-ember-soft: var(--ember-soft);
+  --color-ember-foreground: var(--ember-foreground);
+
+  /* Sidebar (maps onto --rail) */
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Radii: sm 6 / base 10 / lg 10 / xl 12 (spec) */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
+  --radius-2xl: 14px;
 }
 
 :root {
+  /* Fonts */
   --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
   --font-body: "DM Sans", ui-sans-serif, system-ui, sans-serif;
-  --background: oklch(0.986 0.002 287);
-  --foreground: oklch(0.15 0.015 265);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.15 0.015 265);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.15 0.015 265);
-  --primary: oklch(0.35 0.08 160);
-  --primary-foreground: oklch(0.986 0.002 287);
-  --secondary: oklch(0.95 0.008 265);
-  --secondary-foreground: oklch(0.25 0.015 265);
-  --muted: oklch(0.95 0.008 265);
-  --muted-foreground: oklch(0.52 0.015 265);
-  --accent: oklch(0.95 0.008 265);
-  --accent-foreground: oklch(0.15 0.015 265);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.91 0.008 265);
-  --input: oklch(0.91 0.008 265);
-  --ring: oklch(0.35 0.08 160);
-  --chart-1: oklch(0.35 0.08 160);
-  --chart-2: oklch(0.45 0.12 160);
-  --chart-3: oklch(0.55 0.15 160);
-  --chart-4: oklch(0.65 0.18 160);
-  --chart-5: oklch(0.75 0.20 160);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.98 0.005 265);
-  --sidebar-foreground: oklch(0.15 0.015 265);
-  --sidebar-primary: oklch(0.35 0.08 160);
-  --sidebar-primary-foreground: oklch(0.986 0.002 287);
-  --sidebar-accent: oklch(0.93 0.008 265);
-  --sidebar-accent-foreground: oklch(0.15 0.015 265);
-  --sidebar-border: oklch(0.91 0.008 265);
-  --sidebar-ring: oklch(0.35 0.08 160);
+
+  /* ── Light theme (Graphite, designed not inverted) ── */
+  --background: #f7f6f4;
+  --foreground: #232326;
+  --surface: #ffffff;
+  --surface-raised: #fbfaf8;
+  --rail: #f2f1ee;
+  --hairline: #e4e2dd;
+
+  --card: #ffffff;
+  --card-foreground: #232326;
+  --popover: #ffffff;
+  --popover-foreground: #232326;
+
+  --primary: #059669;            /* ember */
+  --primary-foreground: #ffffff;
+  --secondary: #fbfaf8;
+  --secondary-foreground: #232326;
+  --muted: #fbfaf8;
+  --muted-foreground: #75757c;
+  --accent: #fbfaf8;             /* neutral hover surface (not the brand) */
+  --accent-foreground: #232326;
+
+  --ember: #059669;
+  --ember-soft: #d1fae5;
+  --ember-foreground: #ffffff;
+
+  --destructive: #d13438;
+  --border: #e4e2dd;
+  --input: #e4e2dd;
+  --ring: #059669;
+
+  --sidebar: #f2f1ee;
+  --sidebar-foreground: #232326;
+  --sidebar-primary: #059669;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #fbfaf8;
+  --sidebar-accent-foreground: #232326;
+  --sidebar-border: #e4e2dd;
+  --sidebar-ring: #059669;
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  /* ── Dark theme (Graphite — the default) ── */
+  --background: #111112;
+  --foreground: #eceaea;
+  --surface: #1c1c1f;
+  --surface-raised: #232326;
+  --rail: #161617;
+  --hairline: #3a3a40;
+
+  --card: #1c1c1f;
+  --card-foreground: #eceaea;
+  --popover: #1c1c1f;
+  --popover-foreground: #eceaea;
+
+  --primary: #10b981;            /* ember */
+  --primary-foreground: #04130c;
+  --secondary: #232326;
+  --secondary-foreground: #eceaea;
+  --muted: #232326;
+  --muted-foreground: #8f8f96;
+  --accent: #232326;             /* neutral hover surface */
+  --accent-foreground: #eceaea;
+
+  --ember: #10b981;
+  --ember-soft: #0d2a21;
+  --ember-foreground: #04130c;
+
+  --destructive: #e5484d;
+  --border: #3a3a40;
+  --input: #3a3a40;
+  --ring: #10b981;
+
+  --sidebar: #161617;
+  --sidebar-foreground: #eceaea;
+  --sidebar-primary: #10b981;
+  --sidebar-primary-foreground: #04130c;
+  --sidebar-accent: #232326;
+  --sidebar-accent-foreground: #eceaea;
+  --sidebar-border: #3a3a40;
+  --sidebar-ring: #10b981;
 }
 
 @layer base {
@@ -153,23 +182,44 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-feature-settings: "cv01", "cv02", "cv03", "cv04", "ss01", "tnum";
+    font-family: var(--font-body);
+    font-feature-settings: "tnum";
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
   html {
-    @apply font-sans;
-    font-size: 14px;        /* Desktop density — 14px base vs 16px web default */
+    font-size: 14px;                 /* desktop density */
     letter-spacing: -0.01em;
   }
-  /* Tighter, crisper headings for desktop */
   h1, h2, h3, h4, h5, h6 {
-    letter-spacing: -0.025em;
-    font-feature-settings: "cv01", "cv02", "ss01";
+    font-family: var(--font-display);
+    letter-spacing: -0.015em;
   }
-  /* Monospace fallback for paths/filenames */
   code, pre, kbd {
     font-feature-settings: "tnum";
   }
+  /* Ember focus ring everywhere by default */
+  :focus-visible {
+    outline: 2px solid var(--ember);
+    outline-offset: 2px;
+  }
+}
+
+/* ── Utilities ────────────────────────────────────────────────────────────── */
+
+/* Micro uppercase label: Space Grotesk 11/500, 0.14em tracking, muted. */
+.label-caps {
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+/* Tabular numerals for progress / stats so layouts don't jitter. */
+.tnum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
 }
