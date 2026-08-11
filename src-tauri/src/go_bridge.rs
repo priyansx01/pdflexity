@@ -131,7 +131,7 @@ impl GoBridge {
 impl GoBridge {
     /// Spawn the engine binary and start the stdout reader task.
     pub fn spawn(app: AppHandle) -> Result<Arc<Self>> {
-        let binary = resolve_engine_path(&app)?;;
+        let binary = resolve_engine_path(&app)?;
         if !binary.exists() {
             return Err(anyhow!(
                 "PDF engine binary not found at: {}\nBuild it with: cd services/pdf-engine && go build -o ../../src-tauri/bin/pdflexity-engine{} ./cmd/pdflexity-engine/",

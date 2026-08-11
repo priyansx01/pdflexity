@@ -75,11 +75,6 @@ impl OpResult {
         }
     }
 
-    pub fn with_file_name(mut self, file_name: impl Into<String>) -> Self {
-        self.file_name = Some(file_name.into());
-        self
-    }
-
     pub fn with_job_id(mut self, job_id: impl Into<String>) -> Self {
         self.job_id = Some(job_id.into());
         self
