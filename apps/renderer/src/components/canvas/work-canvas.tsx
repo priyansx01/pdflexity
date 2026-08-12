@@ -9,6 +9,7 @@ import type { RunOutcome } from "@/lib/tools";
 import { pickPdf, onPdfDragDrop, type LoadedFile } from "@/lib/file-intake";
 import { getPdfMeta } from "@/lib/pdf";
 import { useCanvasState } from "@/stores/use-canvas-state";
+import { OptionsPanel, defaultOptionValues, type OptionValues } from "@/components/canvas/options-panel";
 import { cn } from "@/lib/utils";
 
 type Phase = "empty" | "loaded" | "running" | "done" | "error";
@@ -22,6 +23,7 @@ export function WorkCanvas({ toolId }: { toolId: string }) {
   const [result, setResult] = React.useState<RunOutcome | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [progress, setProgress] = React.useState(0);
+  const [options, setOptions] = React.useState<OptionValues>({});
 
   const setCanvasState = useCanvasState((s) => s.setState);
   const resetCanvasState = useCanvasState((s) => s.reset);
@@ -33,6 +35,7 @@ export function WorkCanvas({ toolId }: { toolId: string }) {
     setError(null);
     setProgress(0);
     setPhase("empty");
+    setOptions(defaultOptionValues(getTool(toolId)?.options ?? []));
     resetCanvasState();
   }, [toolId, resetCanvasState]);
 
@@ -65,6 +68,9 @@ export function WorkCanvas({ toolId }: { toolId: string }) {
     );
   }
 
+  const hasOptions = tool.options.length > 0;
+  const runStep = hasOptions ? 3 : 2;
+
   const handleFiles = (incoming: LoadedFile[]) => {
     setFiles(tool.multiFile ? incoming : [incoming[0]]);
     setError(null);
@@ -80,7 +86,7 @@ export function WorkCanvas({ toolId }: { toolId: string }) {
     try {
       const outcome = await tool.run({
         files,
-        options: {},
+        options,
         onProgress: (pct) => setProgress(pct),
       });
       setProgress(100);
@@ -134,15 +140,20 @@ export function WorkCanvas({ toolId }: { toolId: string }) {
               <DocumentCard files={files} onClear={reset} />
             </StepRow>
 
-            {/* 2 Options (minimal — Step 12 renders the primitives) */}
-            <StepRow n={2} title="Options" hint="Per-tool">
-              <div className="rounded-lg border border-hairline bg-surface px-4 py-3 text-[13px] text-muted-foreground">
-                {tool.options.length ? "Options panel (step 12)" : "No options for this tool."}
-              </div>
-            </StepRow>
+            {/* 2 Options (data-driven primitives) */}
+            {hasOptions && (
+              <StepRow n={2} title="Options" hint="Per-tool">
+                <OptionsPanel
+                  options={tool.options}
+                  values={options}
+                  onChange={setOptions}
+                  dimmed={phase === "running"}
+                />
+              </StepRow>
+            )}
 
-            {/* 3 Run / Running */}
-            <StepRow n={3} title={phase === "running" ? "Running" : "Run"} hint="On-device">
+            {/* Run / Running */}
+            <StepRow n={runStep} title={phase === "running" ? "Running" : "Run"} hint="On-device">
               {phase === "running" ? (
                 <ProgressCard verb={tool.runningVerb} progress={progress} />
               ) : (
