@@ -114,7 +114,12 @@ export function WorkCanvas({ toolId }: { toolId: string }) {
   };
 
   return (
-    <div className="mx-auto flex h-full w-full max-w-3xl flex-col px-6 py-8">
+    <div
+      className="mx-auto flex h-full w-full max-w-3xl flex-col px-6 py-8"
+      onKeyDown={(e) => {
+        if (e.key === "Escape" && phase === "loaded") reset();
+      }}
+    >
       <AnimatePresence mode="wait" initial={false}>
         {phase === "empty" && (
           <motion.div
@@ -130,13 +135,17 @@ export function WorkCanvas({ toolId }: { toolId: string }) {
         )}
 
         {(phase === "loaded" || phase === "running") && (
-          <motion.div
+          <motion.form
             key="flow"
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={STEP_SPRING}
             className="flex flex-1 flex-col gap-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (phase === "loaded") handleRun();
+            }}
           >
             {/* 1 Document */}
             <StepRow n={1} title="Document" hint="Loaded from disk">
@@ -160,10 +169,10 @@ export function WorkCanvas({ toolId }: { toolId: string }) {
               {phase === "running" ? (
                 <ProgressCard verb={tool.runningVerb} progress={progress} />
               ) : (
-                <RunButton cta={tool.cta} disabled={!files.length} onClick={handleRun} />
+                <RunButton cta={tool.cta} disabled={!files.length} />
               )}
             </StepRow>
-          </motion.div>
+          </motion.form>
         )}
 
         {phase === "done" && result && (
@@ -326,16 +335,13 @@ function DocumentCard({
 function RunButton({
   cta,
   disabled,
-  onClick,
 }: {
   cta: string;
   disabled?: boolean;
-  onClick: () => void;
 }) {
   return (
     <button
-      type="button"
-      onClick={onClick}
+      type="submit"
       disabled={disabled}
       className="group flex w-full items-center justify-center gap-2 rounded-lg bg-ember px-6 py-3 text-[14px] font-semibold text-ember-foreground transition-transform hover:brightness-105 active:scale-[0.995] disabled:opacity-40"
     >
