@@ -2,11 +2,12 @@
 
 import * as React from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { Upload, FileText, X, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
+import { Upload, FileText, X, Loader2, CheckCircle2, AlertCircle, Lock } from "lucide-react";
 
 import { getTool } from "@/lib/tools";
 import type { RunOutcome } from "@/lib/tools";
 import { pickPdf, onPdfDragDrop, type LoadedFile } from "@/lib/file-intake";
+import { getPdfMeta } from "@/lib/pdf";
 import { useCanvasState } from "@/stores/use-canvas-state";
 import { cn } from "@/lib/utils";
 
@@ -239,9 +240,13 @@ function EmptyDropzone({
         hovering ? "border-ember bg-ember-soft/40" : "border-hairline hover:border-ember/50"
       )}
     >
-      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-ember-soft">
+      <motion.div
+        animate={hovering ? { y: -4, scale: 1.04 } : { y: 0, scale: 1 }}
+        transition={{ type: "spring", stiffness: 420, damping: 30 }}
+        className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-ember-soft"
+      >
         <Upload className="h-7 w-7 text-ember" />
-      </div>
+      </motion.div>
       <p className="text-[15px] font-medium">Drop your PDF here</p>
       <p className="mt-1 text-[13px] text-muted-foreground">
         or <span className="text-ember">browse your files</span>
@@ -261,22 +266,42 @@ function DocumentCard({
   onClear: () => void;
 }) {
   const f = files[0];
+  const [meta, setMeta] = React.useState<{ pages: number | null; encrypted: boolean }>({
+    pages: null,
+    encrypted: false,
+  });
+  React.useEffect(() => {
+    let cancelled = false;
+    if (f) getPdfMeta(f.buffer).then((m) => !cancelled && setMeta(m));
+    return () => {
+      cancelled = true;
+    };
+  }, [f]);
+
   return (
     <div className="flex items-center gap-3 rounded-lg border border-hairline bg-surface px-4 py-3">
-      <div className="flex h-16 w-12 items-center justify-center rounded-md bg-surface-raised">
+      <div className="flex h-16 w-12 shrink-0 items-center justify-center rounded-md bg-surface-raised">
         <FileText className="h-5 w-5 text-muted-foreground" />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-[14px] font-semibold">{f?.name ?? "document.pdf"}</p>
+        <div className="flex items-center gap-2">
+          <p className="truncate text-[14px] font-semibold">{f?.name ?? "document.pdf"}</p>
+          {meta.encrypted && (
+            <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-ember-soft px-2 py-0.5 text-[10px] font-medium text-ember">
+              <Lock className="h-3 w-3" /> AES-256
+            </span>
+          )}
+        </div>
         <p className="text-[12px] text-muted-foreground">
-          {files.length > 1 ? `${files.length} files` : `${fmtSize(f?.buffer.byteLength ?? 0)}`}
+          {meta.pages ? `${meta.pages} ${meta.pages === 1 ? "page" : "pages"} · ` : ""}
+          {files.length > 1 ? `${files.length} files` : fmtSize(f?.buffer.byteLength ?? 0)}
         </p>
       </div>
       <button
         type="button"
         onClick={onClear}
         aria-label="Clear"
-        className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-surface-raised hover:text-foreground"
+        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-surface-raised hover:text-foreground"
       >
         <X className="h-4 w-4" />
       </button>
