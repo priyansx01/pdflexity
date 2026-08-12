@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { Upload, FileText, X, Loader2, CheckCircle2, AlertCircle, Lock } from "lucide-react";
+import { Upload, FileText, X, Loader2, CheckCircle2, AlertCircle, Lock, ChevronRight, Download, FolderOpen } from "lucide-react";
 
 import { getTool } from "@/lib/tools";
 import type { RunOutcome } from "@/lib/tools";
@@ -10,6 +10,7 @@ import { pickPdf, onPdfDragDrop, type LoadedFile } from "@/lib/file-intake";
 import { getPdfMeta } from "@/lib/pdf";
 import { useCanvasState } from "@/stores/use-canvas-state";
 import { OptionsPanel, defaultOptionValues, type OptionValues } from "@/components/canvas/options-panel";
+import { saveBytes, revealSaved } from "@/lib/file-output";
 import { cn } from "@/lib/utils";
 
 type Phase = "empty" | "loaded" | "running" | "done" | "error";
@@ -24,6 +25,7 @@ export function WorkCanvas({ toolId }: { toolId: string }) {
   const [error, setError] = React.useState<string | null>(null);
   const [progress, setProgress] = React.useState(0);
   const [options, setOptions] = React.useState<OptionValues>({});
+  const [durationMs, setDurationMs] = React.useState(0);
 
   const setCanvasState = useCanvasState((s) => s.setState);
   const resetCanvasState = useCanvasState((s) => s.reset);
@@ -90,12 +92,12 @@ export function WorkCanvas({ toolId }: { toolId: string }) {
         onProgress: (pct) => setProgress(pct),
       });
       setProgress(100);
+      setDurationMs(performance.now() - startedAt);
       // Spec: 100% + 260ms -> done.
       setTimeout(() => {
         setResult(outcome);
         setPhase("done");
       }, 260);
-      void startedAt;
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       setPhase("error");
@@ -108,6 +110,7 @@ export function WorkCanvas({ toolId }: { toolId: string }) {
     setError(null);
     setProgress(0);
     setPhase("empty");
+    setDurationMs(0);
   };
 
   return (
@@ -172,7 +175,7 @@ export function WorkCanvas({ toolId }: { toolId: string }) {
             transition={STEP_SPRING}
             className="flex flex-1 items-center"
           >
-            <DoneCard toolName={tool.name} result={result} onAnother={reset} />
+            <DoneCard toolName={tool.name} engine={tool.engine} durationMs={durationMs} result={result} onAnother={reset} />
           </motion.div>
         )}
 
@@ -334,9 +337,10 @@ function RunButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="flex w-full items-center justify-center gap-2 rounded-lg bg-ember px-6 py-3 text-[14px] font-semibold text-ember-foreground transition-transform hover:brightness-105 active:scale-[0.995] disabled:opacity-40"
+      className="group flex w-full items-center justify-center gap-2 rounded-lg bg-ember px-6 py-3 text-[14px] font-semibold text-ember-foreground transition-transform hover:brightness-105 active:scale-[0.995] disabled:opacity-40"
     >
       {cta}
+      <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
     </button>
   );
 }
@@ -366,34 +370,103 @@ function ProgressCard({ verb, progress }: { verb: string; progress: number }) {
 
 function DoneCard({
   toolName,
+  engine,
+  durationMs,
   result,
   onAnother,
 }: {
   toolName: string;
+  engine: string;
+  durationMs: number;
   result: RunOutcome;
   onAnother: () => void;
 }) {
+  const [savedPath, setSavedPath] = React.useState<string | null>(null);
+
   const name = result.kind === "file" ? result.fileName : `${result.files.length} files`;
   const size =
     result.kind === "file"
       ? approxBase64Size(result.dataB64)
       : result.files.reduce((a, f) => a + approxBase64Size(f.dataB64), 0);
+
+  const handleSave = async () => {
+    try {
+      if (result.kind === "file") {
+        const p = await saveBytes(result.fileName, result.dataB64);
+        if (p) setSavedPath(p);
+      } else {
+        let last: string | null = null;
+        for (const f of result.files) {
+          const p = await saveBytes(f.name, f.dataB64);
+          if (p) last = p;
+        }
+        if (last) setSavedPath(last);
+      }
+    } catch {
+      /* ignore */
+    }
+  };
+
   return (
-    <div className="w-full rounded-xl border border-hairline bg-surface p-6 text-center">
-      <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-ember-soft">
-        <CheckCircle2 className="h-6 w-6 text-ember" />
+    <div className="w-full rounded-xl border border-hairline bg-surface p-6">
+      <div className="flex items-center gap-3">
+        <motion.div
+          initial={{ scale: 0.6, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: "spring", stiffness: 500, damping: 22 }}
+          className="flex h-11 w-11 items-center justify-center rounded-full bg-ember-soft"
+        >
+          <CheckCircle2 className="h-6 w-6 text-ember" />
+        </motion.div>
+        <div className="min-w-0">
+          <h2 className="text-[16px] font-bold">{toolName} complete</h2>
+          <p className="truncate text-[13px] text-muted-foreground">
+            {name} · {fmtSize(size)}
+          </p>
+        </div>
       </div>
-      <h2 className="text-[16px] font-bold">{toolName} complete</h2>
-      <p className="mt-1 text-[13px] text-muted-foreground">
-        {name} · {fmtSize(size)}
-      </p>
-      <button
-        type="button"
-        onClick={onAnother}
-        className="mt-5 rounded-lg border border-hairline px-4 py-2 text-[13px] hover:bg-surface-raised"
-      >
-        Do another
-      </button>
+
+      {/* Stat grid */}
+      <div className="mt-5 grid grid-cols-3 divide-x divide-hairline overflow-hidden rounded-lg border border-hairline">
+        <Stat label="Duration" value={durationMs > 0 ? `${(durationMs / 1000).toFixed(1)}s` : "—"} />
+        <Stat label="Engine" value={engine} />
+        <Stat label="Uploads" value="0" />
+      </div>
+
+      {/* Actions */}
+      <div className="mt-5 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={handleSave}
+          className="flex items-center gap-1.5 rounded-lg bg-ember px-4 py-2 text-[13px] font-semibold text-ember-foreground hover:brightness-105"
+        >
+          <Download className="h-4 w-4" /> Save as…
+        </button>
+        <button
+          type="button"
+          disabled={!savedPath}
+          onClick={() => savedPath && revealSaved(savedPath)}
+          className="flex items-center gap-1.5 rounded-lg border border-hairline px-4 py-2 text-[13px] hover:bg-surface-raised disabled:opacity-40"
+        >
+          <FolderOpen className="h-4 w-4" /> Reveal in folder
+        </button>
+        <button
+          type="button"
+          onClick={onAnother}
+          className="rounded-lg px-4 py-2 text-[13px] text-muted-foreground hover:bg-surface-raised hover:text-foreground"
+        >
+          Do another
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="bg-surface-raised/40 px-3 py-2.5">
+      <p className="label-caps">{label}</p>
+      <p className="tnum mt-0.5 truncate text-[13px] font-semibold">{value}</p>
     </div>
   );
 }
