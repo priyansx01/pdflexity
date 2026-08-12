@@ -1,7 +1,7 @@
 "use client"
 
 import { useRef, useEffect } from "react"
-import { motion } from "framer-motion"
+import { motion } from "motion/react"
 import { RotateCw, ZoomIn, ZoomOut, ChevronLeft, ChevronRight } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useOcrStore } from "@/stores/use-ocr-store"

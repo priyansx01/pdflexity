@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback } from "react"
-import { motion, AnimatePresence } from "framer-motion"
+import { motion, AnimatePresence } from "motion/react"
 import { cn } from "@/lib/utils"
 import { useOcrStore } from "@/stores/use-ocr-store"
 import { useOcrPipeline } from "@/features/optimize/ocr/hooks/use-ocr-pipeline"

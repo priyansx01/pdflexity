@@ -1,6 +1,6 @@
 "use client"
 
-import { motion } from "framer-motion"
+import { motion } from "motion/react"
 import {
   Download, Undo2, Redo2, ZoomIn, ZoomOut, Eye, EyeOff,
   Columns3, PanelLeft, PanelRight, ChevronDown, Globe, ShieldCheck,

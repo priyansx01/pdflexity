@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { motion, AnimatePresence } from "framer-motion"
+import { motion, AnimatePresence } from "motion/react"
 import { cn } from "@/lib/utils"
 import { useOcrStore } from "@/stores/use-ocr-store"
 import type { OCRTextBlock, StructureNode, BlockType } from "@/features/optimize/ocr/types"
