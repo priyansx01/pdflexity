@@ -3,7 +3,7 @@
 import * as React from "react";
 import { motion } from "motion/react";
 import { Info } from "lucide-react";
-import type { ShellTool } from "./app-shell";
+import type { Tool } from "@/lib/tools";
 import { cn } from "@/lib/utils";
 
 const OVERSHOOT = { type: "spring" as const, stiffness: 500, damping: 22 };
@@ -12,7 +12,7 @@ const OVERSHOOT = { type: "spring" as const, stiffness: 500, damping: 22 };
  * ToolHeader — icon tile, title + "{subtitle} · Local engine", capability pills.
  * The icon tile re-mounts per tool with an overshoot scale-in.
  */
-export function ToolHeader({ tool }: { tool: ShellTool | null }) {
+export function ToolHeader({ tool }: { tool: Tool | null }) {
   if (!tool) {
     return (
       <header className="flex h-[68px] shrink-0 items-center border-b border-hairline bg-background px-6" />

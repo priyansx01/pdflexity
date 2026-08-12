@@ -1,7 +1,7 @@
 "use client";
 
 import { ShieldCheck, WifiOff } from "lucide-react";
-import type { ShellTool } from "./app-shell";
+import type { Tool } from "@/lib/tools";
 import { useCanvasState } from "@/stores/use-canvas-state";
 import { cn } from "@/lib/utils";
 
@@ -12,7 +12,7 @@ const STATE_COLOR: Record<string, string> = {
   COMPLETE: "text-ember",
 };
 
-export function StatusStrip({ tool }: { tool: ShellTool | null }) {
+export function StatusStrip({ tool }: { tool: Tool | null }) {
   const state = useCanvasState((s) => s.state);
 
   return (

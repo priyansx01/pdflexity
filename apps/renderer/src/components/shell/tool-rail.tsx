@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { motion } from "motion/react";
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
-import type { ShellTool, ToolGroup } from "./app-shell";
+import type { Tool, ToolGroup } from "@/lib/tools";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -18,7 +18,7 @@ const RECENT: { name: string; meta: string }[] = [
   { name: "Contract_v3.pdf", meta: "Sign · yesterday" },
 ];
 
-export function ToolRail({ tools, activeId }: { tools: ShellTool[]; activeId: string | null }) {
+export function ToolRail({ tools, activeId }: { tools: Tool[]; activeId: string | null }) {
   const [collapsed, setCollapsed] = React.useState(false);
 
   return (
@@ -90,7 +90,7 @@ export function ToolRail({ tools, activeId }: { tools: ShellTool[]; activeId: st
   );
 }
 
-function NavLeaf({ tool, active, collapsed }: { tool: ShellTool; active: boolean; collapsed: boolean }) {
+function NavLeaf({ tool, active, collapsed }: { tool: Tool; active: boolean; collapsed: boolean }) {
   const Icon = tool.icon;
 
   const inner = (
