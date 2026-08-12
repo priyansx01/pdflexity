@@ -5,7 +5,7 @@ import { useSplitStore } from "@/stores/use-split-store"
 import { DropZone } from "./components/drop-zone"
 import { PreviewCanvas } from "./components/preview-canvas"
 import { ControlPanel } from "./components/control-panel"
-import { SuccessCard } from "../merge/components/success-card"
+import { SuccessCard } from "@/components/shared/success-card"
 
 export function SplitPage() {
   const step = useSplitStore(state => state.step)

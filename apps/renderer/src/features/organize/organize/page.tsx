@@ -10,7 +10,7 @@ import { MainCanvas } from "./components/main-canvas"
 import { FileStack } from "./components/file-stack"
 import { ActionControls } from "./components/action-controls"
 import { ThumbnailGenerator } from "./components/thumbnail-generator"
-import { SuccessCard } from "../merge/components/success-card" // Reusing success card
+import { SuccessCard } from "@/components/shared/success-card" // Reusing success card
 
 import { useOrganizeStore } from "@/stores/use-organize-store"
 

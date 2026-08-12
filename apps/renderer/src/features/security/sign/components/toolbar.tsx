@@ -3,7 +3,7 @@
 import * as React from "react"
 import { useSignStore } from "@/stores/use-sign-store"
 import { PenTool, Download, Loader2 } from "lucide-react"
-import { SuccessCard } from "@/features/security/protect/components/success-card"
+import { SuccessCard } from "@/components/shared/success-card"
 
 export function SignToolbar() {
   const store = useSignStore()
