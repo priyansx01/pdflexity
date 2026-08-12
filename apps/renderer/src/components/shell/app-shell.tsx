@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { usePathname } from "next/navigation";
+import { MotionConfig } from "motion/react";
 
 import { TitleBar } from "./title-bar";
 import { ToolRail } from "./tool-rail";
@@ -29,6 +30,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
+    <MotionConfig reducedMotion="user">
     <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
       <TitleBar onOpenPalette={() => setPaletteOpen(true)} />
       <div className="flex min-h-0 flex-1">
@@ -42,6 +44,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
     </div>
+    </MotionConfig>
   );
 }
 
