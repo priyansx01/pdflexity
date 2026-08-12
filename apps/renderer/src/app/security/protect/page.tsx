@@ -1,2 +1,5 @@
-// Route entry-point — delegates to the feature module
-export { default } from "@/features/security/protect/page"
+import { WorkCanvas } from "@/components/canvas/work-canvas";
+
+export default function Page() {
+  return <WorkCanvas toolId="protect" />;
+}

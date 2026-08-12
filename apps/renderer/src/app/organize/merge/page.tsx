@@ -1,7 +1,5 @@
-"use client"
-
-import MergePdfPage from "@/features/organize/merge/page"
+import { WorkCanvas } from "@/components/canvas/work-canvas";
 
 export default function Page() {
-  return <MergePdfPage />
+  return <WorkCanvas toolId="merge" />;
 }
