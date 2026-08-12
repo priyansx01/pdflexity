@@ -93,18 +93,17 @@ export function ToolRail({ tools, activeId }: { tools: Tool[]; activeId: string 
 function NavLeaf({ tool, active, collapsed }: { tool: Tool; active: boolean; collapsed: boolean }) {
   const Icon = tool.icon;
 
-  const inner = (
-    <Link
-      href={tool.href}
-      className={cn(
-        "group relative flex items-center gap-2.5 rounded-lg text-[13px] outline-none transition-colors",
-        "focus-visible:ring-2 focus-visible:ring-ember/50",
-        collapsed ? "mx-auto h-9 w-9 justify-center" : "px-3 py-[7px]",
-        active
-          ? "bg-ember/10 text-foreground"
-          : "text-muted-foreground hover:bg-surface-raised hover:text-foreground"
-      )}
-    >
+  const linkClass = cn(
+    "group relative flex items-center gap-2.5 rounded-lg text-[13px] outline-none transition-colors",
+    "focus-visible:ring-2 focus-visible:ring-ember/50",
+    collapsed ? "mx-auto h-9 w-9 justify-center" : "px-3 py-[7px]",
+    active
+      ? "bg-ember/10 text-foreground"
+      : "text-muted-foreground hover:bg-surface-raised hover:text-foreground"
+  );
+
+  const content = (
+    <>
       {active && (
         <motion.span
           layoutId="rail-marker"
@@ -114,18 +113,30 @@ function NavLeaf({ tool, active, collapsed }: { tool: Tool; active: boolean; col
       )}
       <Icon className={cn("h-[15px] w-[15px] shrink-0", active ? "text-ember" : "")} />
       {!collapsed && <span className="relative truncate">{tool.name}</span>}
-    </Link>
+    </>
   );
 
   if (collapsed) {
     return (
       <li>
         <Tooltip>
-          <TooltipTrigger asChild>{inner}</TooltipTrigger>
+          <TooltipTrigger
+            render={
+              <Link href={tool.href} aria-label={tool.name} className={linkClass}>
+                {content}
+              </Link>
+            }
+          />
           <TooltipContent side="right">{tool.name}</TooltipContent>
         </Tooltip>
       </li>
     );
   }
-  return <li>{inner}</li>;
+  return (
+    <li>
+      <Link href={tool.href} className={linkClass}>
+        {content}
+      </Link>
+    </li>
+  );
 }
