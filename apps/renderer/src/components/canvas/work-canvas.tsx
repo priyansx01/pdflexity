@@ -10,6 +10,7 @@ import { pickPdf, onPdfDragDrop, type LoadedFile } from "@/lib/file-intake";
 import { getPdfMeta } from "@/lib/pdf";
 import { useCanvasState } from "@/stores/use-canvas-state";
 import { OptionsPanel, defaultOptionValues, type OptionValues } from "@/components/canvas/options-panel";
+import { DocumentList } from "@/components/canvas/document-list";
 import { saveBytes, revealSaved } from "@/lib/file-output";
 import { cn } from "@/lib/utils";
 
@@ -96,6 +97,27 @@ export function WorkCanvas({ toolId }: { toolId: string }) {
     setError(e instanceof Error ? e.message : String(e));
   }, []);
 
+  const handleRemoveFile = React.useCallback((index: number) => {
+    setFiles((prev) => prev.filter((_, i) => i !== index));
+  }, []);
+
+  const handleReorder = React.useCallback((next: LoadedFile[]) => {
+    setFiles(next);
+  }, []);
+
+  const handleAddMore = React.useCallback(() => {
+    pickPdf(true).then((f) => f && handleFiles(f)).catch(handlePickError);
+  }, [handleFiles, handlePickError]);
+
+  // OS drops anywhere on the canvas add files (empty or loaded state).
+  const filesRef = React.useRef(handleFiles);
+  filesRef.current = handleFiles;
+  const dropEnabled = phase === "empty" || phase === "loaded";
+  React.useEffect(() => {
+    if (!dropEnabled) return;
+    return onPdfDragDrop({ onDrop: (fs) => filesRef.current(fs) });
+  }, [dropEnabled]);
+
   const handleRun = async () => {
     if (!canRun) return;
     setPhase("running");
@@ -169,8 +191,22 @@ export function WorkCanvas({ toolId }: { toolId: string }) {
             }}
           >
             {/* 1 Document */}
-            <StepRow n={1} title="Document" hint="Loaded from disk">
-              <DocumentCard files={files} onClear={reset} />
+            <StepRow
+              n={1}
+              title="Document"
+              hint={isMulti ? `${files.length} loaded — drag to set order` : "Loaded from disk"}
+            >
+              {isMulti ? (
+                <DocumentList
+                  files={files}
+                  onReorder={handleReorder}
+                  onRemove={handleRemoveFile}
+                  onAddMore={handleAddMore}
+                  disabled={phase === "running"}
+                />
+              ) : (
+                <DocumentCard files={files} onClear={reset} />
+              )}
             </StepRow>
 
             {/* 2 Options (data-driven primitives) */}
@@ -281,16 +317,12 @@ function EmptyDropzone({
   onPickError: (e: unknown) => void;
 }) {
   const [hovering, setHovering] = React.useState(false);
-  const handlers = React.useRef({ onFiles });
-  handlers.current.onFiles = onFiles;
   React.useEffect(() => {
+    // Hover visuals only — WorkCanvas owns the drop handling.
     return onPdfDragDrop({
       onOver: () => setHovering(true),
       onLeave: () => setHovering(false),
-      onDrop: (files) => {
-        setHovering(false);
-        handlers.current.onFiles(files);
-      },
+      onDrop: () => setHovering(false),
     });
   }, []);
 

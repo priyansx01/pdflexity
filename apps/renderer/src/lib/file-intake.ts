@@ -48,7 +48,7 @@ export async function readFiles(paths: string[]): Promise<LoadedFile[]> {
 type DragDropHandlers = {
   onOver?: () => void;
   onLeave?: () => void;
-  onDrop: (files: LoadedFile[]) => void;
+  onDrop?: (files: LoadedFile[]) => void;
 };
 
 /**
@@ -81,7 +81,7 @@ export function onPdfDragDrop(handlers: DragDropHandlers): () => void {
         over = false;
         const paths = (event.payload as { paths?: string[] }).paths ?? [];
         const files = await readFiles(paths).catch(() => [] as LoadedFile[]);
-        if (files.length) ref.current.onDrop(files);
+        if (files.length) ref.current.onDrop?.(files);
       }
     })
     .then((u) => (unlisten = u))

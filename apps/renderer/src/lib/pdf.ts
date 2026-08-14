@@ -45,3 +45,39 @@ export async function getPdfMeta(
     return { pages: null, encrypted: false };
   }
 }
+
+/**
+ * Render page 1 of a PDF to a PNG dataURL sized to `maxWidth` (keeps aspect).
+ * Returns null on any failure. Never throws and never detaches the input
+ * buffer (it renders from a copy).
+ */
+export async function renderThumbnail(
+  buffer: ArrayBuffer,
+  maxWidth = 96,
+): Promise<string | null> {
+  try {
+    const lib = await getPdfjs();
+    const data = new Uint8Array(buffer.slice(0));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const pdf = await lib.getDocument({ data, password: "" }).promise;
+    const page = await pdf.getPage(1);
+    const base = page.getViewport({ scale: 1 });
+    const scale = maxWidth / base.width;
+    const viewport = page.getViewport({ scale });
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.ceil(viewport.width);
+    canvas.height = Math.ceil(viewport.height);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("no 2d context");
+    await page.render({ canvasContext: ctx, viewport }).promise;
+    const url = canvas.toDataURL("image/png");
+    try {
+      await pdf.destroy();
+    } catch {
+      /* ignore */
+    }
+    return url;
+  } catch {
+    return null;
+  }
+}
