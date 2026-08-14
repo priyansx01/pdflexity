@@ -70,17 +70,34 @@ export function WorkCanvas({ toolId }: { toolId: string }) {
     );
   }
 
-  const hasOptions = tool.options.length > 0;
+  const hasOptions = !!tool && tool.options.length > 0;
   const runStep = hasOptions ? 3 : 2;
+  const isMulti = !!tool?.multiFile;
+  const canRun = isMulti ? files.length >= 2 : files.length >= 1;
 
-  const handleFiles = (incoming: LoadedFile[]) => {
-    setFiles(tool.multiFile ? incoming : [incoming[0]]);
-    setError(null);
-    setPhase("loaded");
-  };
+  const handleFiles = React.useCallback(
+    (incoming: LoadedFile[]) => {
+      setFiles((prev) => {
+        if (isMulti) {
+          // Append, skipping files already loaded (same name + size).
+          const seen = new Set(prev.map((f) => `${f.name}:${f.buffer.byteLength}`));
+          const next = incoming.filter((f) => !seen.has(`${f.name}:${f.buffer.byteLength}`));
+          return [...prev, ...next];
+        }
+        return [incoming[0]];
+      });
+      setError(null);
+      setPhase("loaded");
+    },
+    [isMulti]
+  );
+
+  const handlePickError = React.useCallback((e: unknown) => {
+    setError(e instanceof Error ? e.message : String(e));
+  }, []);
 
   const handleRun = async () => {
-    if (!files.length) return;
+    if (!canRun) return;
     setPhase("running");
     setError(null);
     setProgress(0);
@@ -130,7 +147,11 @@ export function WorkCanvas({ toolId }: { toolId: string }) {
             transition={STEP_SPRING}
             className="flex flex-1 items-center"
           >
-            <EmptyDropzone tool={tool} onFiles={handleFiles} />
+            <EmptyDropzone
+              tool={tool}
+              onFiles={handleFiles}
+              onPickError={handlePickError}
+            />
           </motion.div>
         )}
 
@@ -164,12 +185,27 @@ export function WorkCanvas({ toolId }: { toolId: string }) {
               </StepRow>
             )}
 
+            {/* Validation hint */}
+            {phase === "loaded" && isMulti && files.length < 2 && (
+              <p className="text-[12px] text-muted-foreground">
+                Add at least {2 - files.length} more PDF{2 - files.length === 1 ? "" : "s"} to run this tool.
+              </p>
+            )}
+
+            {/* Surface intake / run errors */}
+            {error && (
+              <div className="flex items-center gap-2 rounded-lg border border-destructive/40 bg-surface px-3 py-2 text-[12px] text-muted-foreground">
+                <AlertCircle className="h-4 w-4 shrink-0 text-destructive" />
+                <span className="min-w-0 truncate">{error}</span>
+              </div>
+            )}
+
             {/* Run / Running */}
             <StepRow n={runStep} title={phase === "running" ? "Running" : "Run"} hint="On-device">
               {phase === "running" ? (
                 <ProgressCard verb={tool.runningVerb} progress={progress} />
               ) : (
-                <RunButton cta={tool.cta} disabled={!files.length} />
+                <RunButton cta={tool.cta} disabled={!canRun} />
               )}
             </StepRow>
           </motion.form>
@@ -238,26 +274,36 @@ function StepRow({
 function EmptyDropzone({
   tool,
   onFiles,
+  onPickError,
 }: {
   tool: { accepts: string; cta: string; multiFile?: boolean };
   onFiles: (files: LoadedFile[]) => void;
+  onPickError: (e: unknown) => void;
 }) {
   const [hovering, setHovering] = React.useState(false);
+  const handlers = React.useRef({ onFiles });
+  handlers.current.onFiles = onFiles;
   React.useEffect(() => {
     return onPdfDragDrop({
       onOver: () => setHovering(true),
       onLeave: () => setHovering(false),
       onDrop: (files) => {
         setHovering(false);
-        onFiles(files);
+        handlers.current.onFiles(files);
       },
     });
-  }, [onFiles]);
+  }, []);
+
+  const handleBrowse = () => {
+    pickPdf(!!tool.multiFile)
+      .then((f) => f && onFiles(f))
+      .catch(onPickError);
+  };
 
   return (
     <button
       type="button"
-      onClick={() => pickPdf(!!tool.multiFile).then((f) => f && onFiles(f))}
+      onClick={handleBrowse}
       className={cn(
         "flex w-full flex-col items-center rounded-xl border border-dashed bg-surface/60 px-6 py-16 text-center transition-colors",
         hovering ? "border-ember bg-ember-soft/40" : "border-hairline hover:border-ember/50"
