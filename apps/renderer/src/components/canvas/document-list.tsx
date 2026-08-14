@@ -18,7 +18,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { FileText, GripVertical, Lock, Plus, X } from "lucide-react";
 
-import type { LoadedFile } from "@/lib/file-intake";
+import type { LoadedFile } from "@/lib/desktop";
 import { getPdfMeta, renderThumbnail } from "@/lib/pdf";
 import { cn } from "@/lib/utils";
 

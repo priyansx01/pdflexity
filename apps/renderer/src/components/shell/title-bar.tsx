@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { Minus, Square, X, Search } from "lucide-react";
-import { getCurrentWindow } from "@tauri-apps/api/window";
+import { windowControls } from "@/lib/desktop";
 import { cn } from "@/lib/utils";
 
 /**
@@ -18,28 +18,19 @@ export function TitleBar({
   onOpenPalette?: () => void;
 }) {
   const [maximized, setMaximized] = React.useState(false);
-  const winRef = React.useRef<ReturnType<typeof getCurrentWindow> | null>(null);
 
   React.useEffect(() => {
-    if (typeof window === "undefined") return;
-    const w = getCurrentWindow();
-    winRef.current = w;
-    w.isMaximized().then(setMaximized).catch(() => {});
+    windowControls.isMaximized().then(setMaximized);
     let unlisten: (() => void) | undefined;
-    w.onResized(() => {
-      w.isMaximized().then(setMaximized).catch(() => {});
-    })
-      .then((u) => (unlisten = u))
-      .catch(() => {});
-    return () => {
-      unlisten?.();
-      winRef.current = null;
-    };
+    windowControls
+      .onResized(() => windowControls.isMaximized().then(setMaximized))
+      .then((u) => (unlisten = u));
+    return () => unlisten?.();
   }, []);
 
-  const minimize = () => winRef.current?.minimize().catch(() => {});
-  const toggleMax = () => winRef.current?.toggleMaximize().catch(() => {});
-  const close = () => winRef.current?.close().catch(() => {});
+  const minimize = () => windowControls.minimize();
+  const toggleMax = () => windowControls.toggleMaximize();
+  const close = () => windowControls.close();
 
   return (
     <div

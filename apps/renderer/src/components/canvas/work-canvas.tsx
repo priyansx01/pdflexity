@@ -6,12 +6,11 @@ import { Upload, FileText, X, Loader2, CheckCircle2, AlertCircle, Lock, ChevronR
 
 import { getTool } from "@/lib/tools";
 import type { RunOutcome } from "@/lib/tools";
-import { pickPdf, onPdfDragDrop, type LoadedFile } from "@/lib/file-intake";
+import { openPdf, onFileDrop, savePdfAs, revealInFolder, type LoadedFile } from "@/lib/desktop";
 import { getPdfMeta } from "@/lib/pdf";
 import { useCanvasState } from "@/stores/use-canvas-state";
 import { OptionsPanel, defaultOptionValues, type OptionValues } from "@/components/canvas/options-panel";
 import { DocumentList } from "@/components/canvas/document-list";
-import { saveBytes, revealSaved } from "@/lib/file-output";
 import { cn } from "@/lib/utils";
 
 type Phase = "empty" | "loaded" | "running" | "done" | "error";
@@ -106,7 +105,7 @@ export function WorkCanvas({ toolId }: { toolId: string }) {
   }, []);
 
   const handleAddMore = React.useCallback(() => {
-    pickPdf(true).then((f) => f && handleFiles(f)).catch(handlePickError);
+    openPdf(true).then((f) => f && handleFiles(f)).catch(handlePickError);
   }, [handleFiles, handlePickError]);
 
   // OS drops anywhere on the canvas add files (empty or loaded state).
@@ -115,7 +114,7 @@ export function WorkCanvas({ toolId }: { toolId: string }) {
   const dropEnabled = phase === "empty" || phase === "loaded";
   React.useEffect(() => {
     if (!dropEnabled) return;
-    return onPdfDragDrop({ onDrop: (fs) => filesRef.current(fs) });
+    return onFileDrop({ onDrop: (fs) => filesRef.current(fs) });
   }, [dropEnabled]);
 
   const handleRun = async () => {
@@ -319,7 +318,7 @@ function EmptyDropzone({
   const [hovering, setHovering] = React.useState(false);
   React.useEffect(() => {
     // Hover visuals only — WorkCanvas owns the drop handling.
-    return onPdfDragDrop({
+    return onFileDrop({
       onOver: () => setHovering(true),
       onLeave: () => setHovering(false),
       onDrop: () => setHovering(false),
@@ -327,7 +326,7 @@ function EmptyDropzone({
   }, []);
 
   const handleBrowse = () => {
-    pickPdf(!!tool.multiFile)
+    openPdf(!!tool.multiFile)
       .then((f) => f && onFiles(f))
       .catch(onPickError);
   };
@@ -476,12 +475,12 @@ function DoneCard({
   const handleSave = async () => {
     try {
       if (result.kind === "file") {
-        const p = await saveBytes(result.fileName, result.dataB64);
+        const p = await savePdfAs(result.fileName, result.dataB64);
         if (p) setSavedPath(p);
       } else {
         let last: string | null = null;
         for (const f of result.files) {
-          const p = await saveBytes(f.name, f.dataB64);
+          const p = await savePdfAs(f.name, f.dataB64);
           if (p) last = p;
         }
         if (last) setSavedPath(last);
@@ -529,7 +528,7 @@ function DoneCard({
         <button
           type="button"
           disabled={!savedPath}
-          onClick={() => savedPath && revealSaved(savedPath)}
+          onClick={() => savedPath && revealInFolder(savedPath)}
           className="flex items-center gap-1.5 rounded-lg border border-hairline px-4 py-2 text-[13px] hover:bg-surface-raised disabled:opacity-40"
         >
           <FolderOpen className="h-4 w-4" /> Reveal in folder
