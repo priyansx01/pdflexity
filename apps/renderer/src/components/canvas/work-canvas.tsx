@@ -7,7 +7,7 @@ import { Upload, FileText, X, Loader2, CheckCircle2, AlertCircle, Lock, ChevronR
 import { getTool } from "@/lib/tools";
 import type { RunOutcome } from "@/lib/tools";
 import { openPdf, onFileDrop, savePdfAs, revealInFolder, type LoadedFile } from "@/lib/desktop";
-import { getPdfMeta } from "@/lib/pdf";
+import { getPdfMeta, renderThumbnail } from "@/lib/pdf";
 import { useCanvasState } from "@/stores/use-canvas-state";
 import { OptionsPanel, defaultOptionValues, type OptionValues } from "@/components/canvas/options-panel";
 import { DocumentList } from "@/components/canvas/document-list";
@@ -126,6 +126,10 @@ export function WorkCanvas({ toolId }: { toolId: string }) {
 
   const handleRun = async () => {
     if (!canRun) return;
+    if (files.some((f) => f.buffer.byteLength === 0)) {
+      setError("A loaded file is empty — clear it and drop the PDF again.");
+      return;
+    }
     setPhase("running");
     setError(null);
     setProgress(0);
@@ -377,38 +381,66 @@ function DocumentCard({
     pages: null,
     encrypted: false,
   });
+  const [thumb, setThumb] = React.useState<string | null>(null);
+
   React.useEffect(() => {
     let cancelled = false;
-    if (f) getPdfMeta(f.buffer).then((m) => !cancelled && setMeta(m));
+    if (f) {
+      getPdfMeta(f.buffer).then((m) => !cancelled && setMeta(m));
+      renderThumbnail(f.buffer, 224).then((t) => !cancelled && setThumb(t));
+    }
     return () => {
       cancelled = true;
     };
   }, [f]);
 
+  const empty = (f?.buffer.byteLength ?? 0) === 0;
+
   return (
-    <div className="flex items-center gap-3 rounded-lg border border-hairline bg-surface px-4 py-3">
-      <div className="flex h-16 w-12 shrink-0 items-center justify-center rounded-md bg-surface-raised">
-        <FileText className="h-5 w-5 text-muted-foreground" />
+    <div className="flex items-center gap-4 rounded-lg border border-hairline bg-surface px-4 py-3.5">
+      {/* Large page-1 preview */}
+      <div className="relative flex h-32 w-24 shrink-0 items-center justify-center overflow-hidden rounded-md border border-hairline bg-surface-raised">
+        {thumb ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={thumb}
+            alt={`Page 1 of ${f?.name ?? "document"}`}
+            className="h-full w-full object-contain"
+          />
+        ) : (
+          <FileText className="h-8 w-8 text-muted-foreground/60" />
+        )}
+        {meta.pages != null && meta.pages > 1 && (
+          <span className="absolute bottom-1 right-1 rounded bg-background/80 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground backdrop-blur-sm">
+            1/{meta.pages}
+          </span>
+        )}
       </div>
+
+      {/* Meta */}
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <p className="truncate text-[14px] font-semibold">{f?.name ?? "document.pdf"}</p>
-          {meta.encrypted && (
-            <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-soft px-2 py-0.5 text-[10px] font-medium text-emerald">
-              <Lock className="h-3 w-3" /> AES-256
-            </span>
-          )}
-        </div>
-        <p className="text-[12px] text-muted-foreground">
+        <p className="truncate text-[14px] font-semibold">{f?.name ?? "document.pdf"}</p>
+        <p className="mt-1 text-[12px] text-muted-foreground">
           {meta.pages ? `${meta.pages} ${meta.pages === 1 ? "page" : "pages"} · ` : ""}
-          {files.length > 1 ? `${files.length} files` : fmtSize(f?.buffer.byteLength ?? 0)}
+          {fmtSize(f?.buffer.byteLength ?? 0)}
         </p>
+        {meta.encrypted && (
+          <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-emerald-soft px-2 py-0.5 text-[10px] font-medium text-emerald">
+            <Lock className="h-3 w-3" /> AES-256 encrypted
+          </span>
+        )}
+        {empty && (
+          <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-medium text-destructive">
+            Empty file — reload the PDF
+          </span>
+        )}
       </div>
+
       <button
         type="button"
         onClick={onClear}
         aria-label="Clear"
-        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-surface-raised hover:text-foreground"
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-surface-raised hover:text-foreground"
       >
         <X className="h-4 w-4" />
       </button>

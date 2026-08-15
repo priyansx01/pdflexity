@@ -45,6 +45,9 @@ pub async fn pdf_unlock(buffer_b64: String, password: String, file_name: String,
     };
     let result = (async {
         let bytes = decode_b64(&buffer_b64)?;
+        if bytes.is_empty() {
+            anyhow::bail!("The file arrived empty (0 bytes). Please clear it and load the PDF again.");
+        }
         let input = write_file(&dir, "input.pdf", &bytes).await?;
         let output = dir.join("output.pdf");
         let resp = bridge
@@ -80,6 +83,9 @@ pub async fn pdf_protect(buffer_b64: String, password: String, file_name: String
     };
     let result = (async {
         let bytes = decode_b64(&buffer_b64)?;
+        if bytes.is_empty() {
+            anyhow::bail!("The file arrived empty (0 bytes). Please clear it and load the PDF again.");
+        }
         let input = write_file(&dir, "input.pdf", &bytes).await?;
         let output = dir.join("output.pdf");
         let resp = bridge
@@ -209,6 +215,9 @@ pub async fn pdf_split(
     };
     let result: anyhow::Result<OpResult> = async {
         let bytes = decode_b64(&buffer_b64)?;
+        if bytes.is_empty() {
+            anyhow::bail!("The file arrived empty (0 bytes). Please clear it and load the PDF again.");
+        }
         let input = write_file(&dir, &format!("input_{file_name}"), &bytes).await?;
 
         let output = if merge_output {
@@ -312,6 +321,9 @@ pub async fn pdf_verify(buffer_b64: String, app: AppHandle) -> OpResult {
     };
     let result = (async {
         let bytes = decode_b64(&buffer_b64)?;
+        if bytes.is_empty() {
+            anyhow::bail!("The file arrived empty (0 bytes). Please clear it and load the PDF again.");
+        }
         let input = write_file(&dir, "verify_in.pdf", &bytes).await?;
         let resp = bridge
             .send(Command::new("verify").input_path_opt(input.clone()))
