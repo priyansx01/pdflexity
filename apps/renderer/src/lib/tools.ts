@@ -1,6 +1,6 @@
 import {
-  Merge, Scissors, ListOrdered, PenTool, LockOpen, Shield,
-  FileStack, EyeOff, Minimize2, Wrench, ScanSearch,
+  Merge, Scissors, FileOutput, ArrowDownUp, RotateCw, PenTool, LockOpen, Shield,
+  FileStack, EyeOff, Minimize2, Wrench, ScanSearch, Repeat,
   type LucideIcon,
 } from "lucide-react";
 
@@ -8,6 +8,7 @@ export type ToolGroup = "Organize" | "Security" | "Optimize";
 
 export type ToolOption =
   | { kind: "password"; id: string; label: string; hint?: string }
+  | { kind: "text"; id: string; label: string; hint?: string; placeholder?: string }
   | { kind: "toggle"; id: string; label: string; hint?: string; defaultOn?: boolean }
   | { kind: "segment"; id: string; label: string; choices: string[]; defaultChoice: string };
 
@@ -74,11 +75,43 @@ export const TOOLS: Tool[] = [
     run: async () => { throw new Error("Split uses a custom canvas"); },
   },
   {
-    id: "organize", name: "Organize PDF", group: "Organize", icon: ListOrdered,
+    id: "extract", name: "Extract Pages", group: "Organize", icon: FileOutput,
+    subtitle: "Pull selected pages into a new PDF", engine: "pdfcpu", capability: "Ranges",
+    href: "/organize/extract", accepts: "PDF only", cta: "Extract", runningVerb: "Extracting",
+    options: [
+      {
+        kind: "text", id: "pages", label: "Pages",
+        hint: "e.g. 1-3, 5, 8-10",
+        placeholder: "1-3, 5",
+      },
+    ],
+    run: async ({ files, options }) => {
+      const f = requireFile(files);
+      const raw = String(options.pages ?? "").trim();
+      const ranges = raw.split(",").map((s) => s.trim()).filter(Boolean);
+      if (!ranges.length) throw new Error("Enter the pages to extract (e.g. 1-3, 5)");
+      const { bytesToB64 } = await import("@/lib/desktop");
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const r = await (window as any).electronAPI.pdf.split(f.buffer, f.name, ranges, true);
+      if (!r.success) throw new Error(r.error);
+      // Adapter returns a single-file ArrayBuffer for mergeOutput splits.
+      const dataB64 = bytesToB64(r.data as ArrayBuffer);
+      return { kind: "file", fileName: `extracted_${f.name}`, dataB64 };
+    },
+  },
+  {
+    id: "organize", name: "Reorder Pages", group: "Organize", icon: ArrowDownUp,
     subtitle: "Reorder pages", engine: "pdfcpu", capability: "Drag-sort",
     href: "/organize/organize", accepts: "PDF only", cta: "Organize", runningVerb: "Organizing",
     options: [], complex: true,
-    run: async () => { throw new Error("Organize uses a custom canvas"); },
+    run: async () => { throw new Error("Reorder uses a custom canvas"); },
+  },
+  {
+    id: "rotate", name: "Rotate Pages", group: "Organize", icon: RotateCw,
+    subtitle: "Turn pages 90°/180°", engine: "pdfcpu", capability: "Lossless",
+    href: "/organize/rotate", accepts: "PDF only", cta: "Rotate", runningVerb: "Rotating",
+    options: [], available: false,
+    run: async () => { throw new Error("Rotate isn't wired to the engine yet"); },
   },
 
   // ── Security ──
@@ -149,6 +182,13 @@ export const TOOLS: Tool[] = [
     href: "/optimize/ocr", accepts: "PDF only", cta: "Start OCR", runningVerb: "Running OCR",
     options: [], complex: true,
     run: async () => { throw new Error("OCR uses a custom canvas"); },
+  },
+  {
+    id: "convert", name: "Convert PDF", group: "Optimize", icon: Repeat,
+    subtitle: "Export to other formats", engine: "pdfcpu", capability: "Multi-format",
+    href: "/optimize/convert", accepts: "PDF only", cta: "Convert", runningVerb: "Converting",
+    options: [], available: false,
+    run: async () => { throw new Error("Convert isn't wired to the engine yet"); },
   },
 ];
 

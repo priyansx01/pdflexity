@@ -62,10 +62,17 @@ export function WorkCanvas({ toolId }: { toolId: string }) {
     );
   }
   if (tool.available === false) {
+    const Icon = tool.icon;
     return (
       <Centered>
-        <AlertCircle className="mb-3 h-8 w-8 text-muted-foreground" />
-        <p className="text-muted-foreground">{tool.name} isn’t wired to the engine yet.</p>
+        <div className="flex h-14 w-14 items-center justify-center rounded-xl border border-emerald/25 bg-emerald-soft">
+          <Icon className="h-7 w-7 text-emerald" />
+        </div>
+        <h2 className="mt-4 text-[16px] font-bold">{tool.name}</h2>
+        <p className="mt-1 max-w-[320px] text-[13px] text-muted-foreground">
+          {tool.subtitle} — this tool is on the roadmap and needs engine support
+          first. Watch the repo for updates.
+        </p>
       </Centered>
     );
   }

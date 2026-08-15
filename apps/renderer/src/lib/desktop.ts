@@ -60,6 +60,17 @@ export function b64ToBytes(b64: string): Uint8Array {
   return bytes;
 }
 
+/** Encode bytes to base64 (chunked to avoid call-stack limits on large files). */
+export function bytesToB64(bytes: Uint8Array | ArrayBuffer): string {
+  const u8 = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  const CHUNK = 0x8000;
+  let binary = "";
+  for (let i = 0; i < u8.length; i += CHUNK) {
+    binary += String.fromCharCode(...u8.subarray(i, Math.min(i + CHUNK, u8.length)));
+  }
+  return btoa(binary);
+}
+
 /**
  * Prompt for a save location and write the bytes. Returns the chosen path, or
  * null on cancel. Never auto-writes next to the source file.

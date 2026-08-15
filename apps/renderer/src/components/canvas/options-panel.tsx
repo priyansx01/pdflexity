@@ -47,6 +47,15 @@ export function OptionsPanel({
                 onChange={(v) => set(opt.id, v)}
               />
             )}
+            {opt.kind === "text" && (
+              <input
+                type="text"
+                value={String(values[opt.id] ?? "")}
+                placeholder={"placeholder" in opt ? opt.placeholder : undefined}
+                onChange={(e) => set(opt.id, e.target.value)}
+                className="w-44 rounded-md border border-hairline bg-surface-raised px-2.5 py-1.5 text-[13px] outline-none transition-colors placeholder:text-muted-foreground/50 focus:border-emerald"
+              />
+            )}
             {opt.kind === "toggle" && (
               <Toggle
                 checked={Boolean(values[opt.id] ?? opt.defaultOn)}
