@@ -136,7 +136,7 @@ function SortableFileCard({
         setMeta(m);
       });
     }
-    renderThumbnail(file.buffer).then((t) => !cancelled && setThumb(t));
+    renderThumbnail(file.buffer, 224).then((t) => !cancelled && setThumb(t));
     return () => {
       cancelled = true;
     };
@@ -148,7 +148,7 @@ function SortableFileCard({
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
       className={cn(
-        "flex items-center gap-3 rounded-lg border border-hairline bg-surface px-3 py-2.5",
+        "flex items-center gap-4 rounded-lg border border-hairline bg-surface px-4 py-3.5",
         isDragging && "z-10 opacity-80 ring-1 ring-emerald/40"
       )}
     >
@@ -156,21 +156,24 @@ function SortableFileCard({
       <button
         type="button"
         aria-label={`Reorder ${file.name}`}
-        className="-ml-1 flex h-7 w-5 cursor-grab touch-none items-center justify-center text-muted-foreground/50 hover:text-foreground active:cursor-grabbing"
+        className="-ml-1.5 flex h-28 w-5 shrink-0 cursor-grab touch-none items-center justify-center text-muted-foreground/50 hover:text-foreground active:cursor-grabbing"
         {...attributes}
         {...listeners}
       >
         <GripVertical className="h-4 w-4" />
       </button>
 
-      {/* Thumbnail */}
-      <div className="flex h-16 w-12 shrink-0 items-center justify-center overflow-hidden rounded-md bg-surface-raised">
+      {/* Large page-1 preview */}
+      <div className="relative flex h-32 w-24 shrink-0 items-center justify-center overflow-hidden rounded-md border border-hairline bg-surface-raised">
         {thumb ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={thumb} alt="" className="h-full w-full object-contain" />
+          <img src={thumb} alt={`Page 1 of ${file.name}`} className="h-full w-full object-contain" />
         ) : (
-          <FileText className="h-5 w-5 text-muted-foreground" />
+          <FileText className="h-8 w-8 text-muted-foreground/60" />
         )}
+        <span className="absolute bottom-1 right-1 rounded bg-background/80 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground backdrop-blur-sm">
+          1{meta?.pages && meta.pages > 1 ? `/${meta.pages}` : ""}
+        </span>
       </div>
 
       {/* Meta */}
@@ -178,16 +181,16 @@ function SortableFileCard({
         <div className="flex items-center gap-2">
           <span className="tnum text-[11px] text-muted-foreground">{index + 1}.</span>
           <p className="truncate text-[14px] font-semibold">{file.name}</p>
-          {meta?.encrypted && (
-            <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-soft px-2 py-0.5 text-[10px] font-medium text-emerald">
-              <Lock className="h-3 w-3" /> AES-256
-            </span>
-          )}
         </div>
-        <p className="text-[12px] text-muted-foreground">
+        <p className="mt-1 text-[12px] text-muted-foreground">
           {meta?.pages ? `${meta.pages} ${meta.pages === 1 ? "page" : "pages"} · ` : ""}
           {fmtSize(file.buffer.byteLength)}
         </p>
+        {meta?.encrypted && (
+          <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-emerald-soft px-2 py-0.5 text-[10px] font-medium text-emerald">
+            <Lock className="h-3 w-3" /> AES-256 encrypted
+          </span>
+        )}
       </div>
 
       {/* Remove */}
@@ -195,7 +198,7 @@ function SortableFileCard({
         type="button"
         onClick={onRemove}
         aria-label={`Remove ${file.name}`}
-        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-surface-raised hover:text-foreground"
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-surface-raised hover:text-foreground"
       >
         <X className="h-4 w-4" />
       </button>
