@@ -52,7 +52,7 @@ export function TitleBar({
         aria-label="Find a tool"
         className={cn(
           "group mr-1 flex items-center gap-2 rounded-md border border-hairline bg-surface px-2.5 py-1",
-          "text-[12px] text-muted-foreground transition-colors hover:border-ember/50 hover:text-foreground"
+          "text-[12px] text-muted-foreground transition-colors hover:border-emerald/50 hover:text-foreground"
         )}
       >
         <Search className="h-3.5 w-3.5" />
@@ -103,7 +103,7 @@ function CtrlButton({
       onClick={onClick}
       className={cn(
         "flex h-7 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors",
-        danger ? "hover:bg-destructive hover:text-white" : "hover:bg-ember hover:text-ember-foreground"
+        danger ? "hover:bg-destructive hover:text-white" : "hover:bg-emerald hover:text-emerald-foreground"
       )}
     >
       {children}

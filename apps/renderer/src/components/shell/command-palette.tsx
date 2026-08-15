@@ -44,7 +44,7 @@ export function CommandPalette({
         loop
         label="Find a tool"
         className={cn(
-          "relative w-full max-w-md overflow-hidden rounded-xl border border-hairline bg-surface shadow-[0_24px_60px_-20px_rgb(0_0_0/0.55)]",
+          "relative w-full max-w-md overflow-hidden rounded-xl border border-hairline bg-surface shadow-(--shadow-float)",
           "flex flex-col"
         )}
       >
@@ -70,9 +70,9 @@ export function CommandPalette({
                       key={t.id}
                       value={`${t.name} ${t.subtitle}`}
                       onSelect={() => go(t.href)}
-                      className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] text-muted-foreground data-[selected=true]:bg-ember/12 data-[selected=true]:text-foreground"
+                      className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] text-muted-foreground data-[selected=true]:bg-emerald/12 data-[selected=true]:text-foreground"
                     >
-                      <Icon className="h-4 w-4 text-ember" />
+                      <Icon className="h-4 w-4 text-emerald" />
                       <span className="flex-1 truncate text-foreground">{t.name}</span>
                       <span className="truncate text-[11px] text-muted-foreground/70">{t.subtitle}</span>
                     </Command.Item>

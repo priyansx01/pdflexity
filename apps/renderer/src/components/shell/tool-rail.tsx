@@ -72,7 +72,7 @@ export function ToolRail({ tools, activeId }: { tools: Tool[]; activeId: string 
                   key={r.name}
                   className="flex min-w-0 items-center gap-2 rounded-lg px-2 py-1.5 text-muted-foreground transition-colors hover:bg-surface-raised"
                 >
-                  <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-ember/60" aria-hidden />
+                  <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald/60" aria-hidden />
                   <span className="min-w-0 flex-1 truncate text-[12px] text-foreground/80">{r.name}</span>
                   <span className="shrink-0 text-[10px] text-muted-foreground/70">{r.meta}</span>
                 </li>
@@ -95,10 +95,10 @@ function NavLeaf({ tool, active, collapsed }: { tool: Tool; active: boolean; col
 
   const linkClass = cn(
     "group relative flex items-center gap-2.5 rounded-lg text-[13px] outline-none transition-colors",
-    "focus-visible:ring-2 focus-visible:ring-ember/50",
+    "focus-visible:ring-2 focus-visible:ring-emerald/50",
     collapsed ? "mx-auto h-9 w-9 justify-center" : "px-3 py-[7px]",
     active
-      ? "bg-ember/10 text-foreground"
+      ? "bg-emerald/10 text-foreground"
       : "text-muted-foreground hover:bg-surface-raised hover:text-foreground"
   );
 
@@ -107,11 +107,11 @@ function NavLeaf({ tool, active, collapsed }: { tool: Tool; active: boolean; col
       {active && (
         <motion.span
           layoutId="rail-marker"
-          className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-ember"
+          className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-emerald"
           transition={{ type: "spring", stiffness: 500, damping: 40 }}
         />
       )}
-      <Icon className={cn("h-[15px] w-[15px] shrink-0", active ? "text-ember" : "")} />
+      <Icon className={cn("h-[15px] w-[15px] shrink-0", active ? "text-emerald" : "")} />
       {!collapsed && <span className="relative truncate">{tool.name}</span>}
     </>
   );

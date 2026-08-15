@@ -36,8 +36,8 @@ export function SuccessCard({
         className
       )}
     >
-      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-ember-soft">
-        <CheckCircle2 className="h-8 w-8 text-ember" />
+      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-soft">
+        <CheckCircle2 className="h-8 w-8 text-emerald" />
       </div>
 
       <div className="space-y-1.5">
@@ -50,7 +50,7 @@ export function SuccessCard({
         <a
           href={downloadUrl}
           download={fileName}
-          className="flex items-center justify-center gap-2 rounded-lg bg-ember px-5 py-2.5 text-sm font-semibold text-ember-foreground transition hover:brightness-105"
+          className="flex items-center justify-center gap-2 rounded-lg bg-emerald px-5 py-2.5 text-sm font-semibold text-emerald-foreground transition hover:brightness-105"
         >
           <Download className="h-4 w-4" />
           {primaryActionText}

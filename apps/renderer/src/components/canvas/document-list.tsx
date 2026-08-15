@@ -88,7 +88,7 @@ export function DocumentList({
       <button
         type="button"
         onClick={onAddMore}
-        className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-hairline py-2.5 text-[13px] text-muted-foreground transition-colors hover:border-ember/50 hover:text-foreground"
+        className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-hairline py-2.5 text-[13px] text-muted-foreground transition-colors hover:border-emerald/50 hover:text-foreground"
       >
         <Plus className="h-4 w-4" /> Add more PDFs
       </button>
@@ -148,7 +148,7 @@ function SortableFileCard({
       style={{ transform: CSS.Transform.toString(transform), transition }}
       className={cn(
         "flex items-center gap-3 rounded-lg border border-hairline bg-surface px-3 py-2.5",
-        isDragging && "z-10 opacity-80 ring-1 ring-ember/40"
+        isDragging && "z-10 opacity-80 ring-1 ring-emerald/40"
       )}
     >
       {/* Drag handle */}
@@ -178,7 +178,7 @@ function SortableFileCard({
           <span className="tnum text-[11px] text-muted-foreground">{index + 1}.</span>
           <p className="truncate text-[14px] font-semibold">{file.name}</p>
           {meta?.encrypted && (
-            <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-ember-soft px-2 py-0.5 text-[10px] font-medium text-ember">
+            <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-soft px-2 py-0.5 text-[10px] font-medium text-emerald">
               <Lock className="h-3 w-3" /> AES-256
             </span>
           )}

@@ -8,8 +8,8 @@ import { cn } from "@/lib/utils";
 const STATE_COLOR: Record<string, string> = {
   IDLE: "text-muted-foreground",
   LOADED: "text-foreground",
-  RUNNING: "text-ember",
-  COMPLETE: "text-ember",
+  RUNNING: "text-emerald",
+  COMPLETE: "text-emerald",
 };
 
 export function StatusStrip({ tool }: { tool: Tool | null }) {
@@ -18,7 +18,7 @@ export function StatusStrip({ tool }: { tool: Tool | null }) {
   return (
     <footer className="flex h-8 shrink-0 items-center justify-between border-t border-hairline bg-rail px-4 text-[11px] text-muted-foreground">
       <div className="flex items-center gap-2">
-        <ShieldCheck className="h-3.5 w-3.5 text-ember" />
+        <ShieldCheck className="h-3.5 w-3.5 text-emerald" />
         <span>File never leaves your device</span>
         {tool && <span className="text-muted-foreground/60">· Engine: {tool.engine}</span>}
       </div>

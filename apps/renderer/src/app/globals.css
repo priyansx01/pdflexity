@@ -12,9 +12,9 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* Legacy Electron drag region (retained until the frameless TitleBar lands) */
-.app-drag { -webkit-app-region: drag; }
-.app-no-drag { -webkit-app-region: no-drag; }
+/* Frameless window drag regions */
+.app-drag, .drag-region { -webkit-app-region: drag; }
+.app-no-drag, .no-drag { -webkit-app-region: no-drag; }
 
 /* Shake animation for error states */
 @keyframes shake {
@@ -28,10 +28,10 @@
 }
 
 /* ──────────────────────────────────────────────────────────────────────────
-   Graphite & Ember design tokens (accent = EMERALD per project decision).
-   Dark is the default theme. Existing shadcn token names are reassigned to the
-   Graphite palette so legacy components adopt the new look during the redesign;
-   new shell components use the explicit --ember / --rail / --surface tokens.
+   Graphite & Emerald design tokens.
+   Every color is an oklch() CSS variable; dark is the default theme and light
+   is designed (not inverted). Components consume them via the @theme inline
+   mappings below — never hardcoded color utilities.
    ────────────────────────────────────────────────────────────────────────── */
 
 @theme inline {
@@ -41,51 +41,56 @@
   --font-heading: var(--font-display);
   --font-sans: var(--font-body);
 
-  /* Tailwind color utility mappings */
+  /* Surfaces & chrome */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-destructive: var(--destructive);
-  --color-border: var(--border);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
-
-  /* New Graphite spec tokens */
   --color-surface: var(--surface);
   --color-surface-raised: var(--surface-raised);
   --color-rail: var(--rail);
-  --color-hairline: var(--hairline);
-  --color-ember: var(--ember);
-  --color-ember-soft: var(--ember-soft);
-  --color-ember-foreground: var(--ember-foreground);
+  --color-border: var(--border);
+  --color-hairline: var(--border);
+  --color-muted-foreground: var(--muted-foreground);
 
-  /* Sidebar (maps onto --rail) */
-  --color-sidebar: var(--sidebar);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-ring: var(--sidebar-ring);
+  /* Accent — emerald is a state signal, never decoration */
+  --color-emerald: var(--emerald);
+  --color-emerald-soft: var(--emerald-soft);
+  --color-emerald-foreground: var(--emerald-foreground);
+  --color-destructive: var(--destructive);
 
-  /* Radii: sm 6 / base 10 / lg 10 / xl 12 (spec) */
+  /* shadcn token bridge */
+  --color-card: var(--surface);
+  --color-card-foreground: var(--foreground);
+  --color-popover: var(--surface);
+  --color-popover-foreground: var(--foreground);
+  --color-primary: var(--emerald);
+  --color-primary-foreground: var(--emerald-foreground);
+  --color-secondary: var(--surface-raised);
+  --color-secondary-foreground: var(--foreground);
+  --color-muted: var(--surface-raised);
+  --color-accent: var(--surface-raised);
+  --color-accent-foreground: var(--foreground);
+  --color-input: var(--border);
+  --color-ring: var(--emerald);
+
+  /* Sidebar (maps onto rail) */
+  --color-sidebar: var(--rail);
+  --color-sidebar-foreground: var(--foreground);
+  --color-sidebar-primary: var(--emerald);
+  --color-sidebar-primary-foreground: var(--emerald-foreground);
+  --color-sidebar-accent: var(--surface-raised);
+  --color-sidebar-accent-foreground: var(--foreground);
+  --color-sidebar-border: var(--border);
+  --color-sidebar-ring: var(--emerald);
+
+  /* Radii: sm 6 / base 10 / lg 10 / xl 12 */
   --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 10px;
   --radius-xl: 12px;
   --radius-2xl: 14px;
+
+  /* The one allowed shadow: floating layers only (palette, dialogs) */
+  --shadow-float: 0 24px 60px -20px rgb(0 0 0 / 0.55);
 }
 
 :root {
@@ -93,87 +98,37 @@
   --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
   --font-body: "DM Sans", ui-sans-serif, system-ui, sans-serif;
 
-  /* ── Light theme (Graphite, designed not inverted) ── */
-  --background: #f7f6f4;
-  --foreground: #232326;
-  --surface: #ffffff;
-  --surface-raised: #fbfaf8;
-  --rail: #f2f1ee;
-  --hairline: #e4e2dd;
+  /* ── Light theme (designed, not inverted) ── */
+  --background: oklch(0.975 0.004 85);
+  --foreground: oklch(0.27 0.004 285);
+  --surface: oklch(1 0 0);
+  --surface-raised: oklch(0.985 0.004 85);
+  --rail: oklch(0.955 0.005 85);
+  --border: oklch(0.905 0.008 85);
+  --muted-foreground: oklch(0.55 0.008 285);
 
-  --card: #ffffff;
-  --card-foreground: #232326;
-  --popover: #ffffff;
-  --popover-foreground: #232326;
+  --emerald: oklch(0.58 0.13 158);
+  --emerald-soft: oklch(0.95 0.03 158);
+  --emerald-foreground: oklch(1 0 0);
 
-  --primary: #059669;            /* ember */
-  --primary-foreground: #ffffff;
-  --secondary: #fbfaf8;
-  --secondary-foreground: #232326;
-  --muted: #fbfaf8;
-  --muted-foreground: #75757c;
-  --accent: #fbfaf8;             /* neutral hover surface (not the brand) */
-  --accent-foreground: #232326;
-
-  --ember: #059669;
-  --ember-soft: #d1fae5;
-  --ember-foreground: #ffffff;
-
-  --destructive: #d13438;
-  --border: #e4e2dd;
-  --input: #e4e2dd;
-  --ring: #059669;
-
-  --sidebar: #f2f1ee;
-  --sidebar-foreground: #232326;
-  --sidebar-primary: #059669;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #fbfaf8;
-  --sidebar-accent-foreground: #232326;
-  --sidebar-border: #e4e2dd;
-  --sidebar-ring: #059669;
+  --destructive: oklch(0.55 0.19 22);
 }
 
 .dark {
-  /* ── Dark theme (Graphite — the default) ── */
-  --background: #111112;
-  --foreground: #eceaea;
-  --surface: #1c1c1f;
-  --surface-raised: #232326;
-  --rail: #161617;
-  --hairline: #3a3a40;
+  /* ── Dark theme (default) ── */
+  --background: oklch(0.18 0.003 285);
+  --foreground: oklch(0.935 0.002 60);
+  --surface: oklch(0.235 0.004 285);
+  --surface-raised: oklch(0.27 0.004 285);
+  --rail: oklch(0.205 0.003 285);
+  --border: oklch(0.37 0.008 285);
+  --muted-foreground: oklch(0.66 0.008 285);
 
-  --card: #1c1c1f;
-  --card-foreground: #eceaea;
-  --popover: #1c1c1f;
-  --popover-foreground: #eceaea;
+  --emerald: oklch(0.72 0.14 160);
+  --emerald-soft: oklch(0.27 0.045 160);
+  --emerald-foreground: oklch(0.17 0.03 160);
 
-  --primary: #10b981;            /* ember */
-  --primary-foreground: #04130c;
-  --secondary: #232326;
-  --secondary-foreground: #eceaea;
-  --muted: #232326;
-  --muted-foreground: #8f8f96;
-  --accent: #232326;             /* neutral hover surface */
-  --accent-foreground: #eceaea;
-
-  --ember: #10b981;
-  --ember-soft: #0d2a21;
-  --ember-foreground: #04130c;
-
-  --destructive: #e5484d;
-  --border: #3a3a40;
-  --input: #3a3a40;
-  --ring: #10b981;
-
-  --sidebar: #161617;
-  --sidebar-foreground: #eceaea;
-  --sidebar-primary: #10b981;
-  --sidebar-primary-foreground: #04130c;
-  --sidebar-accent: #232326;
-  --sidebar-accent-foreground: #eceaea;
-  --sidebar-border: #3a3a40;
-  --sidebar-ring: #10b981;
+  --destructive: oklch(0.63 0.2 22);
 }
 
 @layer base {
@@ -208,9 +163,9 @@
   code, pre, kbd {
     font-feature-settings: "tnum";
   }
-  /* Ember focus ring everywhere by default */
+  /* Emerald focus ring everywhere by default */
   :focus-visible {
-    outline: 2px solid var(--ember);
+    outline: 2px solid var(--emerald);
     outline-offset: 2px;
   }
 }
@@ -231,6 +186,14 @@
 .tnum {
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum";
+}
+
+/* Machinist's grid: 48px hairline lattice at 32% border opacity. */
+.hairline-grid {
+  background-image:
+    linear-gradient(to right, color-mix(in oklab, var(--border) 32%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in oklab, var(--border) 32%, transparent) 1px, transparent 1px);
+  background-size: 48px 48px;
 }
 
 /* cmdk group headings -> label-caps look */

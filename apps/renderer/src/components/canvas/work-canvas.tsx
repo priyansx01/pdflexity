@@ -292,7 +292,7 @@ function StepRow({
   return (
     <section>
       <div className="mb-2 flex items-center gap-2">
-        <span className="flex h-5 w-5 items-center justify-center rounded-full border border-ember/60 text-[11px] font-semibold text-ember">
+        <span className="flex h-5 w-5 items-center justify-center rounded-full border border-emerald/60 text-[11px] font-semibold text-emerald">
           {n}
         </span>
         <h2 className="text-[14px] font-semibold">{title}</h2>
@@ -337,19 +337,19 @@ function EmptyDropzone({
       onClick={handleBrowse}
       className={cn(
         "flex w-full flex-col items-center rounded-xl border border-dashed bg-surface/60 px-6 py-16 text-center transition-colors",
-        hovering ? "border-ember bg-ember-soft/40" : "border-hairline hover:border-ember/50"
+        hovering ? "border-emerald bg-emerald-soft/40" : "border-hairline hover:border-emerald/50"
       )}
     >
       <motion.div
         animate={hovering ? { y: -4, scale: 1.04 } : { y: 0, scale: 1 }}
         transition={{ type: "spring", stiffness: 420, damping: 30 }}
-        className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-ember-soft"
+        className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-soft"
       >
-        <Upload className="h-7 w-7 text-ember" />
+        <Upload className="h-7 w-7 text-emerald" />
       </motion.div>
       <p className="text-[15px] font-medium">Drop your PDF here</p>
       <p className="mt-1 text-[13px] text-muted-foreground">
-        or <span className="text-ember">browse your files</span>
+        or <span className="text-emerald">browse your files</span>
       </p>
       <span className="mt-4 rounded-full border border-hairline px-2.5 py-1 text-[11px] text-muted-foreground">
         {tool.accepts}
@@ -387,7 +387,7 @@ function DocumentCard({
         <div className="flex items-center gap-2">
           <p className="truncate text-[14px] font-semibold">{f?.name ?? "document.pdf"}</p>
           {meta.encrypted && (
-            <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-ember-soft px-2 py-0.5 text-[10px] font-medium text-ember">
+            <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-soft px-2 py-0.5 text-[10px] font-medium text-emerald">
               <Lock className="h-3 w-3" /> AES-256
             </span>
           )}
@@ -420,7 +420,7 @@ function RunButton({
     <button
       type="submit"
       disabled={disabled}
-      className="group flex w-full items-center justify-center gap-2 rounded-lg bg-ember px-6 py-3 text-[14px] font-semibold text-ember-foreground transition-transform hover:brightness-105 active:scale-[0.995] disabled:opacity-40"
+      className="group flex w-full items-center justify-center gap-2 rounded-lg bg-emerald px-6 py-3 text-[14px] font-semibold text-emerald-foreground transition-transform hover:brightness-105 active:scale-[0.995] disabled:opacity-40"
     >
       {cta}
       <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
@@ -433,14 +433,14 @@ function ProgressCard({ verb, progress }: { verb: string; progress: number }) {
     <div className="rounded-lg border border-hairline bg-surface px-4 py-4">
       <div className="mb-2 flex items-center justify-between text-[13px]">
         <span className="flex items-center gap-2">
-          <Loader2 className="h-4 w-4 animate-spin text-ember" />
+          <Loader2 className="h-4 w-4 animate-spin text-emerald" />
           {verb}…
         </span>
         <span className="tnum font-semibold">{progress}%</span>
       </div>
       <div className="h-1 w-full overflow-hidden rounded-full bg-surface-raised">
         <div
-          className="h-full rounded-full bg-ember transition-[width] duration-150"
+          className="h-full rounded-full bg-emerald transition-[width] duration-150"
           style={{ width: `${progress}%` }}
         />
       </div>
@@ -497,9 +497,9 @@ function DoneCard({
           initial={{ scale: 0.6, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ type: "spring", stiffness: 500, damping: 22 }}
-          className="flex h-11 w-11 items-center justify-center rounded-full bg-ember-soft"
+          className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-soft"
         >
-          <CheckCircle2 className="h-6 w-6 text-ember" />
+          <CheckCircle2 className="h-6 w-6 text-emerald" />
         </motion.div>
         <div className="min-w-0">
           <h2 className="text-[16px] font-bold">{toolName} complete</h2>
@@ -521,7 +521,7 @@ function DoneCard({
         <button
           type="button"
           onClick={handleSave}
-          className="flex items-center gap-1.5 rounded-lg bg-ember px-4 py-2 text-[13px] font-semibold text-ember-foreground hover:brightness-105"
+          className="flex items-center gap-1.5 rounded-lg bg-emerald px-4 py-2 text-[13px] font-semibold text-emerald-foreground hover:brightness-105"
         >
           <Download className="h-4 w-4" /> Save as…
         </button>

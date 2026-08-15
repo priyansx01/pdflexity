@@ -27,9 +27,9 @@ export function ToolHeader({ tool }: { tool: Tool | null }) {
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={OVERSHOOT}
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-ember/25 bg-ember-soft"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-emerald/25 bg-emerald-soft"
         >
-          <Icon className="h-5 w-5 text-ember" />
+          <Icon className="h-5 w-5 text-emerald" />
         </motion.div>
         <div className="min-w-0">
           <h1 className="truncate text-[18px] font-bold leading-tight tracking-[-0.015em]">

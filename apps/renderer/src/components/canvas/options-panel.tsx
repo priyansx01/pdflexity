@@ -89,7 +89,7 @@ function PasswordInput({ value, onChange }: { value: string; onChange: (v: strin
       value={value}
       placeholder="••••••••"
       onChange={(e) => onChange(e.target.value)}
-      className="w-44 rounded-md border border-hairline bg-surface-raised px-2.5 py-1.5 text-[13px] outline-none transition-colors placeholder:text-muted-foreground/50 focus:border-ember"
+      className="w-44 rounded-md border border-hairline bg-surface-raised px-2.5 py-1.5 text-[13px] outline-none transition-colors placeholder:text-muted-foreground/50 focus:border-emerald"
     />
   );
 }
@@ -111,8 +111,8 @@ function Toggle({
       aria-label={ariaLabel}
       onClick={() => onChange(!checked)}
       className={cn(
-        "relative h-5 w-9 rounded-full p-0.5 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ember/50",
-        checked ? "bg-ember" : "bg-surface-raised"
+        "relative h-5 w-9 rounded-full p-0.5 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-emerald/50",
+        checked ? "bg-emerald" : "bg-surface-raised"
       )}
     >
       <motion.span
@@ -153,10 +153,10 @@ function Segment({
               <motion.span
                 layoutId={`seg-${ariaLabel}`}
                 transition={THUMB_SPRING}
-                className="absolute inset-0 rounded-[5px] bg-ember"
+                className="absolute inset-0 rounded-[5px] bg-emerald"
               />
             )}
-            <span className={cn("relative", active ? "text-ember-foreground" : "text-muted-foreground")}>
+            <span className={cn("relative", active ? "text-emerald-foreground" : "text-muted-foreground")}>
               {c}
             </span>
           </button>

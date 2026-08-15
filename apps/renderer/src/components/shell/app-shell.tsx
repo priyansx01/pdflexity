@@ -37,7 +37,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <ToolRail tools={TOOLS} activeId={tool?.id ?? null} />
         <div className="flex min-w-0 flex-1 flex-col">
           <ToolHeader tool={tool} />
-          <main className="min-h-0 flex-1 overflow-y-auto">{children}</main>
+          <main className="hairline-grid min-h-0 flex-1 overflow-y-auto">{children}</main>
           <StatusStrip tool={tool} />
         </div>
       </div>
