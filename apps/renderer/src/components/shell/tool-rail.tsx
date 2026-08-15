@@ -3,11 +3,10 @@
 import * as React from "react";
 import Link from "next/link";
 import { motion } from "motion/react";
-import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { PanelLeftClose, PanelLeftOpen, Settings } from "lucide-react";
 import type { Tool, ToolGroup } from "@/lib/tools";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { ThemeToggle } from "@/components/theme-toggle";
 
 const GROUP_ORDER: ToolGroup[] = ["Organize", "Security", "Optimize"];
 
@@ -18,7 +17,15 @@ const RECENT: { name: string; meta: string }[] = [
   { name: "Contract_v3.pdf", meta: "Sign · yesterday" },
 ];
 
-export function ToolRail({ tools, activeId }: { tools: Tool[]; activeId: string | null }) {
+export function ToolRail({
+  tools,
+  activeId,
+  onOpenSettings,
+}: {
+  tools: Tool[];
+  activeId: string | null;
+  onOpenSettings?: () => void;
+}) {
   const [collapsed, setCollapsed] = React.useState(false);
 
   return (
@@ -81,12 +88,44 @@ export function ToolRail({ tools, activeId }: { tools: Tool[]; activeId: string 
           </div>
         )}
 
-        {/* Footer: theme toggle */}
+        {/* Footer: settings */}
         <div className={cn("border-t border-hairline p-2", collapsed && "flex justify-center")}>
-          <ThemeToggle collapsed={collapsed} />
+          <SettingsRow collapsed={collapsed} onClick={onOpenSettings} />
         </div>
       </aside>
     </TooltipProvider>
+  );
+}
+
+function SettingsRow({ collapsed, onClick }: { collapsed: boolean; onClick?: () => void }) {
+  const button = (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label="Settings"
+      className={cn(
+        "flex items-center gap-2.5 rounded-lg text-[13px] outline-none transition-colors",
+        "focus-visible:ring-2 focus-visible:ring-emerald/50",
+        collapsed ? "h-9 w-9 justify-center" : "w-full px-3 py-[7px]",
+        "text-muted-foreground hover:bg-surface-raised hover:text-foreground"
+      )}
+    >
+      <Settings className="h-[15px] w-[15px] shrink-0" />
+      {!collapsed && (
+        <>
+          <span>Settings</span>
+          <span className="ml-auto text-[11px] text-muted-foreground/60">Ctrl+,</span>
+        </>
+      )}
+    </button>
+  );
+
+  if (!collapsed) return button;
+  return (
+    <Tooltip>
+      <TooltipTrigger render={button} />
+      <TooltipContent side="right">Settings</TooltipContent>
+    </Tooltip>
   );
 }
 

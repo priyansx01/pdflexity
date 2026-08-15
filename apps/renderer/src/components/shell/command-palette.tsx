@@ -4,6 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Command } from "cmdk";
 import { TOOLS, TOOL_GROUPS } from "@/lib/tools";
+import { Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -13,9 +14,11 @@ import { cn } from "@/lib/utils";
 export function CommandPalette({
   open,
   onOpenChange,
+  onOpenSettings,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onOpenSettings?: () => void;
 }) {
   const router = useRouter();
 
@@ -81,6 +84,21 @@ export function CommandPalette({
               </Command.Group>
             );
           })}
+
+          <Command.Group heading="General" className="mb-1">
+            <Command.Item
+              value="Settings preferences storage theme"
+              onSelect={() => {
+                onOpenChange(false);
+                onOpenSettings?.();
+              }}
+              className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] text-muted-foreground data-[selected=true]:bg-emerald/12 data-[selected=true]:text-foreground"
+            >
+              <Settings className="h-4 w-4 text-emerald" />
+              <span className="flex-1 truncate text-foreground">Settings</span>
+              <span className="truncate text-[11px] text-muted-foreground/70">Ctrl+,</span>
+            </Command.Item>
+          </Command.Group>
         </Command.List>
       </Command>
     </div>

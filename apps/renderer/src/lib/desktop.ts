@@ -33,6 +33,17 @@ export async function openPdf(multiple = false): Promise<LoadedFile[] | null> {
   return readFiles(paths);
 }
 
+/** Pick a directory (for the default save location). Returns null on cancel. */
+export async function pickDirectory(): Promise<string | null> {
+  try {
+    const dir = await open({ directory: true, multiple: false });
+    if (!dir) return null;
+    return typeof dir === "string" ? dir : (dir as { path?: string }).path ?? null;
+  } catch (e) {
+    throw new Error(`Couldn't open the folder picker: ${e instanceof Error ? e.message : String(e)}`);
+  }
+}
+
 /** Read OS paths into LoadedFile[] (copies buffers so pdf.js can't detach them). */
 export async function readFiles(paths: string[]): Promise<LoadedFile[]> {
   const out: LoadedFile[] = [];
@@ -73,13 +84,23 @@ export function bytesToB64(bytes: Uint8Array | ArrayBuffer): string {
 
 /**
  * Prompt for a save location and write the bytes. Returns the chosen path, or
- * null on cancel. Never auto-writes next to the source file.
+ * null on cancel. Never auto-writes next to the source file. When a default
+ * save directory is configured (settings), the dialog opens there preselected.
  */
 export async function savePdfAs(defaultName: string, dataB64: string): Promise<string | null> {
-  const path = await save({ defaultPath: defaultName, filters: [PDF_FILTER] });
+  const { useSettings } = await import("@/lib/settings");
+  const dir = useSettings.getState().defaultSaveDir;
+  const defaultPath = dir ? joinPath(dir, defaultName) : defaultName;
+  const path = await save({ defaultPath, filters: [PDF_FILTER] });
   if (!path) return null;
   await fsWriteFile(path, b64ToBytes(dataB64));
   return path;
+}
+
+/** Join a directory and filename across platform separators. */
+function joinPath(dir: string, name: string): string {
+  const sep = dir.includes("\\") ? "\\" : "/";
+  return dir.endsWith(sep) ? `${dir}${name}` : `${dir}${sep}${name}`;
 }
 
 /** Reveal a saved file in the OS file manager. */
