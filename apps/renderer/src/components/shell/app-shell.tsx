@@ -32,7 +32,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <MotionConfig reducedMotion="user">
     <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
-      <TitleBar onOpenPalette={() => setPaletteOpen(true)} />
+      <TitleBar workspaceName={tool?.name ?? "PDFlexity"} onOpenPalette={() => setPaletteOpen(true)} />
       <div className="flex min-h-0 flex-1">
         <ToolRail tools={TOOLS} activeId={tool?.id ?? null} />
         <div className="flex min-w-0 flex-1 flex-col">

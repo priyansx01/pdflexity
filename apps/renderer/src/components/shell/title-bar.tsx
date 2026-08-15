@@ -35,29 +35,29 @@ export function TitleBar({
   return (
     <div
       data-tauri-drag-region
-      className="flex h-10 shrink-0 select-none items-center justify-between border-b border-hairline bg-rail pl-3 pr-2"
+      className="relative flex h-10 shrink-0 select-none items-center justify-between border-b border-hairline bg-rail pl-3 pr-2"
     >
       {/* Left: brand + workspace name */}
-      <div data-tauri-drag-region className="flex items-center gap-2.5">
+      <div data-tauri-drag-region className="flex min-w-0 items-center gap-2.5">
         <span className="label-caps text-foreground/90">PDFLEXITY</span>
         <span className="h-3 w-px bg-hairline" aria-hidden />
-        <span className="text-[12px] text-muted-foreground">{workspaceName}</span>
+        <span className="truncate text-[12px] text-muted-foreground">{workspaceName}</span>
       </div>
 
-      {/* Center-right: search pill */}
+      {/* Center: search pill (absolutely centered) */}
       <button
         type="button"
         onClick={onOpenPalette}
         data-tauri-drag-region="false"
         aria-label="Find a tool"
         className={cn(
-          "group mr-1 flex items-center gap-2 rounded-md border border-hairline bg-surface px-2.5 py-1",
+          "absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center gap-2 rounded-md border border-hairline bg-surface px-2.5 py-1",
           "text-[12px] text-muted-foreground transition-colors hover:border-emerald/50 hover:text-foreground"
         )}
       >
         <Search className="h-3.5 w-3.5" />
-        <span>Find a tool</span>
-        <kbd className="rounded border border-hairline bg-surface-raised px-1.5 py-px font-sans text-[10px] text-muted-foreground">
+        <span className="hidden sm:inline">Find a tool</span>
+        <kbd className="rounded border border-hairline bg-surface-raised px-1.5 py-px font-display text-[10px] text-muted-foreground">
           ⌘K
         </kbd>
       </button>
