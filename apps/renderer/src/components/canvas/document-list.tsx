@@ -53,13 +53,14 @@ export function DocumentList({
     onReorder(arrayMove(files, from, to));
   };
 
-  const totalPages = files.reduce((a, f) => a + (pageCache.current.get(key(f))?.pages ?? 0), 0);
-  const totalSize = files.reduce((a, f) => a + f.buffer.byteLength, 0);
+  const pageCache = React.useRef(new Map<string, { pages: number | null; encrypted: boolean }>());
 
   function key(f: LoadedFile) {
     return `${f.name}:${f.buffer.byteLength}`;
   }
-  const pageCache = React.useRef(new Map<string, { pages: number | null; encrypted: boolean }>());
+
+  const totalPages = files.reduce((a, f) => a + (pageCache.current.get(key(f))?.pages ?? 0), 0);
+  const totalSize = files.reduce((a, f) => a + f.buffer.byteLength, 0);
 
   return (
     <div className={cn("space-y-2", disabled && "pointer-events-none opacity-60")}>
