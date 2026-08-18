@@ -39,6 +39,11 @@ tempfile = "3"
 # Encoding (PDF results returned as base64 to match frontend contract)
 base64 = "0.22"
 
+# PDF compression (pure Rust: lopdf structural ops + image crate re-encoding)
+lopdf = "0.36"
+image = { version = "0.25", default-features = false, features = ["jpeg"] }
+flate2 = "1"
+
 # Open URLs in the user's default browser (replaces Electron shell.openExternal)
 open = "5"
 

@@ -80,6 +80,11 @@ impl OpResult {
         self
     }
 
+    pub fn with_file_name(mut self, file_name: impl Into<String>) -> Self {
+        self.file_name = Some(file_name.into());
+        self
+    }
+
     pub fn with_marks(mut self, applied: i64, pages: Vec<i64>) -> Self {
         self.marks_applied = Some(applied);
         self.pages_affected = Some(pages);

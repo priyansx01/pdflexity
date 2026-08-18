@@ -1,6 +1,7 @@
 mod commands;
 mod go_bridge;
 mod go_model;
+mod pdf_ops;
 mod result;
 mod util;
 
@@ -61,6 +62,8 @@ pub fn run() {
             commands::ocr::pdf_ocr_cancel,
             commands::ocr::pdf_ocr_render_page,
             commands::ocr::pdf_ocr_export,
+            // Compression (pure Rust)
+            commands::compress::pdf_compress,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
