@@ -164,10 +164,10 @@ export const TOOLS: Tool[] = [
   // ── Optimize ──
   {
     id: "compress", name: "Compress PDF", group: "Optimize", icon: Minimize2,
-    subtitle: "Reduce file size", engine: "pdfcpu", capability: "Lossless",
+    subtitle: "Reduce file size", engine: "lopdf + image", capability: "On-device",
     href: "/optimize/compress", accepts: "PDF only", cta: "Compress", runningVerb: "Compressing",
-    options: [], available: false,
-    run: async () => { throw new Error("Compress isn't wired to the engine yet"); },
+    options: [], complex: true,
+    run: async () => { throw new Error("Compress uses a custom canvas"); },
   },
   {
     id: "repair", name: "Repair PDF", group: "Optimize", icon: Wrench,

@@ -1,5 +1,5 @@
-import { WorkCanvas } from "@/components/canvas/work-canvas";
+import CompressPage from "@/features/compress/page";
 
 export default function Page() {
-  return <WorkCanvas toolId="compress" />;
+  return <CompressPage />;
 }
