@@ -2,3 +2,4 @@
 //! inside the Tauri backend on the blocking thread pool.
 
 pub mod compress;
+pub mod rotate;

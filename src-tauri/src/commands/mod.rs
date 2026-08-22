@@ -7,3 +7,4 @@ pub mod compress;
 pub mod ocr;
 pub mod pdf;
 pub mod redact;
+pub mod rotate;

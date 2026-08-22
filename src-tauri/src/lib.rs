@@ -64,6 +64,8 @@ pub fn run() {
             commands::ocr::pdf_ocr_export,
             // Compression (pure Rust)
             commands::compress::pdf_compress,
+            // Rotation (pure Rust)
+            commands::rotate::pdf_rotate,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

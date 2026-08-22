@@ -102,6 +102,14 @@ export function createElectronAPI() {
       };
     },
 
+    rotate: (buffer: ArrayBuffer, fileName: string, angle: number, pages?: string) =>
+      call("pdf_rotate", {
+        bufferB64: arrayBufferToBase64(buffer),
+        fileName,
+        angle,
+        pages: pages ?? "",
+      }),
+
     sign: (options: Record<string, unknown>) => {
       const { pdfBytes, ...rest } = options as { pdfBytes: ArrayBuffer } & Record<string, unknown>;
       return call("pdf_sign", {

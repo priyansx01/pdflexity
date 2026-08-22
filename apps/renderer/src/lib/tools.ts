@@ -40,11 +40,25 @@ export type Tool = {
   available?: boolean;
   /** Rendered via a bespoke canvas (step 15), not the data-driven flow. */
   complex?: boolean;
+  /** Option id whose segment choice drives the live preview rotation. */
+  previewRotateOption?: string;
   run: (args: RunArgs) => Promise<RunOutcome>;
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const api = (): any => (window as unknown as { electronAPI?: any }).electronAPI;
+/** Segment choice -> clockwise degrees applied by the rotate tool. */
+export const ROTATION_DEGREES: Record<string, number> = {
+  "90° right": 90,
+  "180°": 180,
+  "90° left": 270,
+};
+
+import { getElectronAPI } from "@/lib/backend-types";
+
+const api = () => {
+  const a = getElectronAPI();
+  if (!a) throw new Error("Backend not ready");
+  return a.pdf;
+};
 
 const requireFile = (files: RunArgs["files"]) => {
   if (!files[0]) throw new Error("No file loaded");
@@ -59,7 +73,7 @@ export const TOOLS: Tool[] = [
     href: "/organize/merge", accepts: "PDF · 2 or more", cta: "Merge", runningVerb: "Merging",
     options: [], multiFile: true,
     run: async ({ files }) => {
-      const r = await api().pdf.merge(
+      const r = await api().merge(
         files.map((f) => ({ buffer: f.buffer, name: f.name })),
         "merged.pdf",
       );
@@ -91,8 +105,7 @@ export const TOOLS: Tool[] = [
       const ranges = raw.split(",").map((s) => s.trim()).filter(Boolean);
       if (!ranges.length) throw new Error("Enter the pages to extract (e.g. 1-3, 5)");
       const { bytesToB64 } = await import("@/lib/desktop");
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const r = await (window as any).electronAPI.pdf.split(f.buffer, f.name, ranges, true);
+      const r = await api().split(f.buffer, f.name, ranges, true);
       if (!r.success) throw new Error(r.error);
       // Adapter returns a single-file ArrayBuffer for mergeOutput splits.
       const dataB64 = bytesToB64(r.data as ArrayBuffer);
@@ -108,10 +121,29 @@ export const TOOLS: Tool[] = [
   },
   {
     id: "rotate", name: "Rotate Pages", group: "Organize", icon: RotateCw,
-    subtitle: "Turn pages 90°/180°", engine: "pdfcpu", capability: "Lossless",
+    subtitle: "Turn pages 90°/180°", engine: "lopdf", capability: "Lossless",
     href: "/organize/rotate", accepts: "PDF only", cta: "Rotate", runningVerb: "Rotating",
-    options: [], available: false,
-    run: async () => { throw new Error("Rotate isn't wired to the engine yet"); },
+    options: [
+      {
+        kind: "segment", id: "angle", label: "Rotation",
+        choices: ["90° right", "180°", "90° left"], defaultChoice: "90° right",
+      },
+      {
+        kind: "text", id: "pages", label: "Pages",
+        hint: "Blank rotates every page · e.g. 1-3, 5",
+        placeholder: "All pages",
+      },
+    ],
+    previewRotateOption: "angle",
+    run: async ({ files, options }) => {
+      const f = requireFile(files);
+      const angle = ROTATION_DEGREES[String(options.angle ?? "")];
+      if (!angle) throw new Error("Choose a rotation angle");
+      const raw = String(options.pages ?? "").trim();
+      const r = await api().rotate(f.buffer, f.name, angle, raw || undefined);
+      if (!r.success) throw new Error(r.error);
+      return { kind: "file", fileName: r.fileName, dataB64: r.data };
+    },
   },
 
   // ── Security ──
@@ -129,7 +161,7 @@ export const TOOLS: Tool[] = [
     options: [{ kind: "password", id: "password", label: "Password", hint: "Required if the PDF is encrypted" }],
     run: async ({ files, options }) => {
       const f = requireFile(files);
-      const r = await api().pdf.unlock(f.buffer, String(options.password ?? ""), f.name);
+      const r = await api().unlock(f.buffer, String(options.password ?? ""), f.name);
       if (!r.success) throw new Error(r.error);
       return { kind: "file", fileName: r.fileName, dataB64: r.data };
     },
@@ -141,7 +173,7 @@ export const TOOLS: Tool[] = [
     options: [{ kind: "password", id: "password", label: "Password" }],
     run: async ({ files, options }) => {
       const f = requireFile(files);
-      const r = await api().pdf.protect(f.buffer, String(options.password ?? ""), f.name);
+      const r = await api().protect(f.buffer, String(options.password ?? ""), f.name);
       if (!r.success) throw new Error(r.error);
       return { kind: "file", fileName: r.fileName, dataB64: r.data };
     },

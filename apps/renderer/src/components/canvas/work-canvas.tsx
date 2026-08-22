@@ -4,7 +4,7 @@ import * as React from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { Upload, FileText, X, Loader2, CheckCircle2, AlertCircle, Lock, ChevronRight, Download, FolderOpen } from "lucide-react";
 
-import { getTool } from "@/lib/tools";
+import { getTool, ROTATION_DEGREES } from "@/lib/tools";
 import type { RunOutcome } from "@/lib/tools";
 import { openPdf, onFileDrop, savePdfAs, revealInFolder, type LoadedFile } from "@/lib/desktop";
 import { getPdfMeta, renderThumbnail } from "@/lib/pdf";
@@ -82,6 +82,13 @@ export function WorkCanvas({ toolId }: { toolId: string }) {
   const runStep = hasOptions ? 3 : 2;
   const isMulti = !!tool?.multiFile;
   const canRun = isMulti ? files.length >= 2 : files.length >= 1;
+
+  // Live preview: tools with previewRotateOption rotate the page-1 thumbnail
+  // as the user picks an angle (mirrors the lossless /Rotate output).
+  const previewDeg =
+    tool?.previewRotateOption != null
+      ? ROTATION_DEGREES[String(options[tool.previewRotateOption] ?? "")] ?? 0
+      : 0;
 
   const handleFiles = React.useCallback(
     (incoming: LoadedFile[]) => {
@@ -219,7 +226,7 @@ export function WorkCanvas({ toolId }: { toolId: string }) {
                   disabled={phase === "running"}
                 />
               ) : (
-                <DocumentCard files={files} onClear={reset} />
+                <DocumentCard files={files} onClear={reset} rotationDeg={previewDeg} />
               )}
             </StepRow>
 
@@ -376,9 +383,11 @@ function EmptyDropzone({
 function DocumentCard({
   files,
   onClear,
+  rotationDeg = 0,
 }: {
   files: LoadedFile[];
   onClear: () => void;
+  rotationDeg?: number;
 }) {
   const f = files[0];
   const [meta, setMeta] = React.useState<{ pages: number | null; encrypted: boolean }>({
@@ -399,14 +408,23 @@ function DocumentCard({
   }, [f]);
 
   const empty = (f?.buffer.byteLength ?? 0) === 0;
+  const quarterTurn = rotationDeg % 180 !== 0;
 
   return (
     <div className="flex items-center gap-4 rounded-lg border border-hairline bg-surface px-4 py-3.5">
-      {/* Large page-1 preview */}
-      <div className="relative flex h-32 w-24 shrink-0 items-center justify-center overflow-hidden rounded-md border border-hairline bg-surface-raised">
+      {/* Large page-1 preview — mirrors the chosen rotation live */}
+      <div
+        className={cn(
+          "relative flex shrink-0 items-center justify-center overflow-hidden rounded-md border border-hairline bg-surface-raised",
+          quarterTurn ? "h-24 w-32" : "h-32 w-24"
+        )}
+      >
         {thumb ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <motion.img
+            initial={false}
+            animate={{ rotate: rotationDeg }}
+            transition={{ type: "spring", stiffness: 260, damping: 26 }}
             src={thumb}
             alt={`Page 1 of ${f?.name ?? "document"}`}
             className="h-full w-full object-contain"
@@ -418,6 +436,16 @@ function DocumentCard({
           <span className="absolute bottom-1 right-1 rounded bg-background/80 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground backdrop-blur-sm">
             1/{meta.pages}
           </span>
+        )}
+        {rotationDeg !== 0 && (
+          <motion.span
+            key={rotationDeg}
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="absolute left-1 top-1 rounded bg-emerald-soft px-1.5 py-0.5 text-[10px] font-semibold text-emerald"
+          >
+            +{rotationDeg}°
+          </motion.span>
         )}
       </div>
 
