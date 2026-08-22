@@ -205,6 +205,7 @@ export interface PdfAPI {
     angle: number,
     pages?: string,
   ) => Promise<PdfBytesResult>;
+  repair: (buffer: ArrayBuffer, fileName: string) => Promise<PdfBytesResult>;
   sign: (options: SignOptions) => Promise<PdfBytesResult>;
   verify: (buffer: ArrayBuffer) => Promise<DataResult<VerifyData>>;
   certInfo: (certPath: string, passphrase: string) => Promise<DataResult<CertInfo>>;

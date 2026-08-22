@@ -205,8 +205,13 @@ export const TOOLS: Tool[] = [
     id: "repair", name: "Repair PDF", group: "Optimize", icon: Wrench,
     subtitle: "Fix a damaged file", engine: "pdfcpu", capability: "Recover",
     href: "/optimize/repair", accepts: "PDF only", cta: "Repair", runningVerb: "Repairing",
-    options: [], available: false,
-    run: async () => { throw new Error("Repair isn't wired to the engine yet"); },
+    options: [],
+    run: async ({ files }) => {
+      const f = requireFile(files);
+      const r = await api().repair(f.buffer, f.name);
+      if (!r.success) throw new Error(r.error);
+      return { kind: "file", fileName: r.fileName, dataB64: r.data };
+    },
   },
   {
     id: "ocr", name: "OCR PDF", group: "Optimize", icon: ScanSearch,

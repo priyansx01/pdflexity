@@ -110,6 +110,12 @@ export function createElectronAPI() {
         pages: pages ?? "",
       }),
 
+    repair: (buffer: ArrayBuffer, fileName: string) =>
+      call("pdf_repair", {
+        bufferB64: arrayBufferToBase64(buffer),
+        fileName,
+      }),
+
     sign: (options: Record<string, unknown>) => {
       const { pdfBytes, ...rest } = options as { pdfBytes: ArrayBuffer } & Record<string, unknown>;
       return call("pdf_sign", {

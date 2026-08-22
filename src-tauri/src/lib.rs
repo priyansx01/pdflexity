@@ -66,6 +66,8 @@ pub fn run() {
             commands::compress::pdf_compress,
             // Rotation (pure Rust)
             commands::rotate::pdf_rotate,
+            // Repair (Go engine / pdfcpu)
+            commands::repair::pdf_repair,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

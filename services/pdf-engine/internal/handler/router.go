@@ -21,6 +21,8 @@ func Route(enc *json.Encoder, cmd model.Command) {
 		handleMerge(enc, cmd)
 	case "split":
 		handleSplit(enc, cmd)
+	case "repair":
+		handleRepair(enc, cmd)
 	case "sign":
 		HandleSign(enc, cmd)
 	case "verify":
