@@ -7,6 +7,7 @@ import { FileText, Lock, X } from "lucide-react";
 import { openPdf, onFileDrop } from "@/lib/desktop";
 import { getPdfMeta, renderThumbnail } from "@/lib/pdf";
 import { useCanvasState } from "@/stores/use-canvas-state";
+import { useRecent } from "@/stores/use-recent-store";
 import { cn } from "@/lib/utils";
 
 import type { LoadedDoc } from "@/features/compress/types";
@@ -64,6 +65,7 @@ export default function CompressPage() {
     try {
       const r = await compress(doc, settings, setStage);
       setResult(r);
+      useRecent.getState().add({ toolId: "compress", fileName: r.fileName });
       setTimeout(() => setPhase("done"), 120);
     } catch {
       setPhase("error");

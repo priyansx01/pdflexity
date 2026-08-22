@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { useSignStore } from "@/stores/use-sign-store"
+import { useRecent } from "@/stores/use-recent-store"
 import { PenTool, Download, Loader2 } from "lucide-react"
 import { SuccessCard } from "@/components/shared/success-card"
 
@@ -42,6 +43,7 @@ export function SignToolbar() {
         const url = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }))
         
         store.setResult(url, resp.fileName)
+        useRecent.getState().add({ toolId: "sign", fileName: resp.fileName })
       } else {
         store.setError(resp.error)
       }

@@ -9,6 +9,7 @@ import type { RunOutcome } from "@/lib/tools";
 import { openPdf, onFileDrop, savePdfAs, revealInFolder, type LoadedFile } from "@/lib/desktop";
 import { getPdfMeta, renderThumbnail } from "@/lib/pdf";
 import { useCanvasState } from "@/stores/use-canvas-state";
+import { useRecent } from "@/stores/use-recent-store";
 import { OptionsPanel, defaultOptionValues, type OptionValues } from "@/components/canvas/options-panel";
 import { DocumentList } from "@/components/canvas/document-list";
 import { cn } from "@/lib/utils";
@@ -146,6 +147,9 @@ export function WorkCanvas({ toolId }: { toolId: string }) {
       setTimeout(() => {
         setResult(outcome);
         setPhase("done");
+        const outName =
+          outcome.kind === "file" ? outcome.fileName : `${outcome.files.length} files`;
+        useRecent.getState().add({ toolId, fileName: outName });
       }, 260);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));

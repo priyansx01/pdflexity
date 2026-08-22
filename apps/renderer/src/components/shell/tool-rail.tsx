@@ -4,18 +4,14 @@ import * as React from "react";
 import Link from "next/link";
 import { motion } from "motion/react";
 import { PanelLeftClose, PanelLeftOpen, Settings } from "lucide-react";
-import type { Tool, ToolGroup } from "@/lib/tools";
+import { useRouter } from "next/navigation";
+import { useRecent } from "@/stores/use-recent-store";
+import { relativeTime } from "@/lib/relative-time";
+import { getTool, type Tool, type ToolGroup } from "@/lib/tools";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const GROUP_ORDER: ToolGroup[] = ["Organize", "Security", "Optimize"];
-
-// Placeholder recents — a real "recent files" store lands later.
-const RECENT: { name: string; meta: string }[] = [
-  { name: "Q1_Report.pdf", meta: "Merge · 2m ago" },
-  { name: "Invoice_2025.pdf", meta: "Protect · 1h ago" },
-  { name: "Contract_v3.pdf", meta: "Sign · yesterday" },
-];
 
 export function ToolRail({
   tools,
@@ -69,24 +65,8 @@ export function ToolRail({
           ))}
         </nav>
 
-        {/* Recent (expanded only) */}
-        {!collapsed && (
-          <div className="px-3 pb-2">
-            <div className="label-caps px-1 pb-1.5">Recent</div>
-            <ul className="space-y-px">
-              {RECENT.map((r) => (
-                <li
-                  key={r.name}
-                  className="flex min-w-0 items-center gap-2 rounded-lg px-2 py-1.5 text-muted-foreground transition-colors hover:bg-surface-raised"
-                >
-                  <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald/60" aria-hidden />
-                  <span className="min-w-0 flex-1 truncate text-[12px] text-foreground/80">{r.name}</span>
-                  <span className="shrink-0 text-[10px] text-muted-foreground/70">{r.meta}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+        {/* Recent (expanded only) — real, persisted, click-to-navigate */}
+        {!collapsed && <RecentList />}
 
         {/* Footer: settings */}
         <div className={cn("border-t border-hairline p-2", collapsed && "flex justify-center")}>
@@ -94,6 +74,53 @@ export function ToolRail({
         </div>
       </aside>
     </TooltipProvider>
+  );
+}
+
+function RecentList() {
+  const router = useRouter();
+  const recent = useRecent((s) => s.recent);
+  // Re-render every minute so relative labels stay fresh.
+  const [, tick] = React.useReducer((x: number) => x + 1, 0);
+  React.useEffect(() => {
+    const id = window.setInterval(tick, 60_000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  return (
+    <div className="px-3 pb-2">
+      <div className="label-caps px-1 pb-1.5">Recent</div>
+      {recent.length === 0 ? (
+        <p className="px-2 py-1.5 text-[11px] text-muted-foreground/60">
+          No recent files yet
+        </p>
+      ) : (
+        <ul className="space-y-px">
+          {recent.slice(0, 3).map((r) => {
+            const tool = getTool(r.toolId);
+            return (
+              <li key={`${r.toolId}:${r.fileName}`}>
+                <button
+                  type="button"
+                  onClick={() => tool && router.push(tool.href)}
+                  disabled={!tool}
+                  title={`${tool?.name ?? r.toolId} · ${r.fileName}`}
+                  className="flex w-full min-w-0 items-center gap-2 rounded-lg px-2 py-1.5 text-left text-muted-foreground transition-colors hover:bg-surface-raised hover:text-foreground focus-visible:ring-2 focus-visible:ring-emerald/50"
+                >
+                  <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald/60" aria-hidden />
+                  <span className="min-w-0 flex-1 truncate text-[12px] text-foreground/80">
+                    {r.fileName}
+                  </span>
+                  <span className="shrink-0 text-[10px] text-muted-foreground/70">
+                    {tool?.name ?? r.toolId} · {relativeTime(r.at)}
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
   );
 }
 

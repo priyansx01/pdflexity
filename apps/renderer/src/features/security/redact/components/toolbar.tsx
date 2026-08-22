@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { useRedactStore } from "@/stores/use-redact-store"
+import { useRecent } from "@/stores/use-recent-store"
 import { Button } from "@/components/ui/button"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { 
@@ -43,6 +44,7 @@ export function Toolbar({ onPreview }: ToolbarProps) {
       const url = URL.createObjectURL(blob)
 
       store.setResult(url, result.fileName, result.marksApplied)
+      useRecent.getState().add({ toolId: "redact", fileName: result.fileName })
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to apply redactions"
       store.setError(message)

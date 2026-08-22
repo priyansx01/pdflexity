@@ -12,6 +12,7 @@ import { DiffPanel }   from "./components/diff-panel"
 import { Toolbar }     from "./components/toolbar"
 
 import { useCompareStore } from "@/stores/use-compare-store"
+import { useRecent } from "@/stores/use-recent-store"
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -130,6 +131,7 @@ export default function ComparePdfPage() {
       }
 
       store.setResult(diffs, stats, raw.totalPages)
+      useRecent.getState().add({ toolId: "compare", fileName: store.fileA?.name ?? "compare" })
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
       store.setError(msg)

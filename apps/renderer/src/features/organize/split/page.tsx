@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { useSplitStore } from "@/stores/use-split-store"
+import { useRecent } from "@/stores/use-recent-store"
 import { DropZone } from "./components/drop-zone"
 import { PreviewCanvas } from "./components/preview-canvas"
 import { ControlPanel } from "./components/control-panel"
@@ -70,6 +71,10 @@ export function SplitPage() {
       }
       
       setStep("success")
+      const outName = result.isMultiple
+        ? `${result.data.length} files`
+        : result.fileName
+      useRecent.getState().add({ toolId: "split", fileName: outName })
     } catch (err: any) {
       setError(err.message || "Failed to split PDF")
       setStep("split")

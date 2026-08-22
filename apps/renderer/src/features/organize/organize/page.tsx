@@ -13,6 +13,7 @@ import { ThumbnailGenerator } from "./components/thumbnail-generator"
 import { SuccessCard } from "@/components/shared/success-card" // Reusing success card
 
 import { useOrganizeStore } from "@/stores/use-organize-store"
+import { useRecent } from "@/stores/use-recent-store"
 
 export function OrganizePage() {
   const store = useOrganizeStore()
@@ -113,6 +114,7 @@ export function OrganizePage() {
     store.setStep("processing")
     setTimeout(() => {
       store.setStep("success")
+      useRecent.getState().add({ toolId: "organize", fileName: "Organized_Document.pdf" })
     }, 1500)
   }
 

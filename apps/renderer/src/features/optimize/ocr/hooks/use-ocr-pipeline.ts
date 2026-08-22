@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef } from "react"
 import { useOcrStore } from "@/stores/use-ocr-store"
+import { useRecent } from "@/stores/use-recent-store"
 import type { OCRProgressEvent, OCRPageResult } from "@/features/optimize/ocr/types"
 
 /**
@@ -74,6 +75,10 @@ export function useOcrPipeline() {
           result.data?.overallConfidence ?? 0,
           result.data?.detectedLanguages ?? []
         )
+        const { uploadedFile } = useOcrStore.getState()
+        if (uploadedFile?.name) {
+          useRecent.getState().add({ toolId: "ocr", fileName: uploadedFile.name })
+        }
       } else {
         useOcrStore.getState().setError(result.error || "OCR processing failed")
       }
