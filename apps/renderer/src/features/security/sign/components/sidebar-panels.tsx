@@ -2,6 +2,8 @@
 
 import * as React from "react"
 import { useSignStore } from "@/stores/use-sign-store"
+import { getElectronAPI } from "@/lib/backend-types"
+import { getErrorMessage } from "@/lib/utils"
 import { Shield, Key, FileSignature, CheckCircle2, XCircle, FileText, Upload, Plus } from "lucide-react"
 
 export function DocumentPanel() {
@@ -60,7 +62,7 @@ export function CertificatePanel() {
       if (file) {
         // Since we need an absolute path for the Go server, and standard input type="file" only gives a File object with no real path in standard web,
         // we'd typically use electron's openFile dialog. For now, we will mock it or assume the file.path exists (electron sometimes exposes it).
-        const path = (file as any).path
+        const path = (file as File & { path?: string }).path
         if (path) {
            store.setCert(path, null, "")
            setError(null)
@@ -72,17 +74,19 @@ export function CertificatePanel() {
 
   const handleLoadInfo = async () => {
     if (!store.certPath || !store.passphrase) return
+    const api = getElectronAPI()
+    if (!api) return
     setLoading(true)
     setError(null)
     try {
-       const resp = await window.electronAPI.pdf.certInfo(store.certPath, store.passphrase)
+       const resp = await api.pdf.certInfo(store.certPath, store.passphrase)
        if (resp.success) {
            store.setCert(store.certPath, resp.data, store.passphrase)
        } else {
            setError(resp.error)
        }
-    } catch (e: any) {
-       setError(e.message)
+    } catch (e: unknown) {
+       setError(getErrorMessage(e))
     } finally {
        setLoading(false)
     }

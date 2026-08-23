@@ -101,44 +101,56 @@ export interface SignOptions {
   fileName?: string;
 }
 
+/** One verified signature — matches the Go engine's `SignatureDetail` (snake_case). */
 export interface SignatureEntry {
-  name?: string;
-  reason?: string;
-  location?: string;
-  contact?: string;
-  date?: string;
-  valid?: boolean;
-  [key: string]: unknown; // engine may add fields; callers use known ones
+  signer: string;
+  date: string;
+  reason: string;
+  location: string;
+  intact: boolean;
+  cert_trusted: boolean;
+  cert_expired: boolean;
+  page: number;
 }
 
 export interface VerifyData {
   signatures: SignatureEntry[];
-  signed?: boolean;
-  [key: string]: unknown;
+  valid?: boolean;
 }
 
+/** Certificate details — matches the Go engine's `CertInfo` (snake_case). */
 export interface CertInfo {
-  subject?: string;
-  issuer?: string;
-  validFrom?: string;
-  validTo?: string;
-  [key: string]: unknown;
+  common_name: string;
+  organization: string;
+  email: string;
+  valid_from: string;
+  valid_until: string;
+  issuer: string;
+  is_expired: boolean;
 }
 
+/** A single text change within a page — matches the Go engine's `Change`. */
 export interface CompareChange {
+  type: "insert" | "delete" | "equal";
+  text: string;
+}
+
+/** Per-page diff — matches the Go engine's `PageResult`. */
+export interface ComparePageDiff {
   page: number;
-  type: string;
-  [key: string]: unknown;
+  changes: CompareChange[];
+  addedChars: number;
+  deletedChars: number;
+  similarity: number;
 }
 
 export interface CompareData {
-  pages: CompareChange[];
+  pages: ComparePageDiff[];
   totalAdded: number;
   totalDeleted: number;
   changedPages: number;
   totalPages: number;
   similarity: number;
-  [key: string]: unknown;
 }
 
 // ─── OCR shapes ───────────────────────────────────────────────────────────────

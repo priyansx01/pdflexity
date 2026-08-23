@@ -4,7 +4,7 @@ import { useMemo, useState } from "react"
 import { motion, AnimatePresence } from "motion/react"
 import { cn } from "@/lib/utils"
 import { useOcrStore } from "@/stores/use-ocr-store"
-import type { OCRTextBlock, StructureNode, BlockType } from "@/features/optimize/ocr/types"
+import type { OCRTextBlock, StructureNode, BlockType, OCRPageResult } from "@/features/optimize/ocr/types"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   ChevronRight, ChevronDown, Heading1, Type, List, Table2, Image,
@@ -13,7 +13,7 @@ import {
 
 export function IntelPanel() {
   const { pageResults, activePage, overallConfidence, detectedLanguages, editedBlocks } = useOcrStore()
-  const pageResult = pageResults.get(activePage)
+  const pageResult = pageResults.get(activePage) ?? null
   const [activeTab, setActiveTab] = useState<"structure" | "confidence" | "metadata">("structure")
 
   const tabs = [
@@ -61,21 +61,22 @@ export function IntelPanel() {
   )
 }
 
-function StructureTab({ pageResult }: { pageResult: any }) {
-  if (!pageResult) {
-    return <EmptyState text="Complete OCR to see structure" />
-  }
-
-  const blocks: OCRTextBlock[] = pageResult.textBlocks || []
+function StructureTab({ pageResult }: { pageResult: OCRPageResult | null }) {
+  // Hooks run before the early return so hook order stays stable per render.
   const grouped = useMemo(() => {
     const groups: Record<string, OCRTextBlock[]> = {}
+    const blocks: OCRTextBlock[] = pageResult?.textBlocks || []
     blocks.forEach((b) => {
       const key = b.type || "paragraph"
       if (!groups[key]) groups[key] = []
       groups[key].push(b)
     })
     return groups
-  }, [blocks])
+  }, [pageResult])
+
+  if (!pageResult) {
+    return <EmptyState text="Complete OCR to see structure" />
+  }
 
   const typeIcons: Record<string, React.ElementType> = {
     heading: Heading1, paragraph: Type, "list-item": List,
@@ -124,7 +125,7 @@ function TreeGroup({ type, items, icon: Icon }: { type: string; items: OCRTextBl
   )
 }
 
-function ConfidenceTab({ pageResult }: { pageResult: any }) {
+function ConfidenceTab({ pageResult }: { pageResult: OCRPageResult | null }) {
   if (!pageResult) return <EmptyState text="Complete OCR to see confidence" />
 
   const blocks: OCRTextBlock[] = pageResult.textBlocks || []
@@ -183,7 +184,7 @@ function ConfBar({ label, count, total, color }: { label: string; count: number;
   )
 }
 
-function MetadataTab({ pageResult, overallConfidence, detectedLanguages, editCount, totalPages }: any) {
+function MetadataTab({ pageResult, overallConfidence, detectedLanguages, editCount, totalPages }: { pageResult: OCRPageResult | null; overallConfidence: number; detectedLanguages: string[]; editCount: number; totalPages: number }) {
   const stats = [
     { label: "Total Pages", value: totalPages },
     { label: "Overall Confidence", value: `${Math.round(overallConfidence * 100)}%` },

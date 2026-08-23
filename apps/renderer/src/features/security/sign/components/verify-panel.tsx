@@ -2,6 +2,8 @@
 
 import * as React from "react"
 import { useSignStore } from "@/stores/use-sign-store"
+import { getElectronAPI } from "@/lib/backend-types"
+import { getErrorMessage } from "@/lib/utils"
 import { ShieldCheck, ShieldAlert, Loader2, Info } from "lucide-react"
 
 export function VerifyPanel() {
@@ -10,17 +12,19 @@ export function VerifyPanel() {
 
   const handleVerify = async () => {
     if (!store.pdfBytes) return
+    const api = getElectronAPI()
+    if (!api) return
     setLoading(true)
     store.setError(null)
     try {
-      const resp = await window.electronAPI.pdf.verify(store.pdfBytes)
+      const resp = await api.pdf.verify(store.pdfBytes)
       if (resp.success) {
         store.setSignatures(resp.data.signatures || [])
       } else {
         store.setError(resp.error)
       }
-    } catch (e: any) {
-       store.setError(e.message)
+    } catch (e: unknown) {
+       store.setError(getErrorMessage(e))
     } finally {
        setLoading(false)
     }
