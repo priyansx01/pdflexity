@@ -32,8 +32,10 @@ processing, wrapped in a premium native desktop shell built with **Tauri + Rust*
 - 🖤 **Redact** — permanently burn out text/regions (search & mark)
 - 🔍 **OCR** — make scanned PDFs searchable & editable (PaddleOCR)
 
-Everything runs offline. The renderer never touches the filesystem directly —
-all file operations go through a secure Tauri command layer to the Go engine.
+Everything runs offline. File access happens only through native OS pickers and
+save dialogs via the Tauri filesystem plugin, and all PDF processing is done by
+the Rust command layer and the local Go/Python engines — nothing is ever
+uploaded.
 
 ## 🏗️ Architecture
 
@@ -47,7 +49,8 @@ Go engine  (pdflexity-engine, pdfcpu)
 Python worker  (PaddleOCR + PyMuPDF)
 ```
 
-- **Renderer never touches the disk** — every operation is a typed Tauri command.
+- **Local-only** — file I/O goes through native pickers/dialogs and typed Tauri
+  commands; documents never leave the machine.
 - The **Go engine** runs as a long-lived child process speaking a one-line-JSON
   protocol (one-shot for most ops, streaming for OCR).
 - **Tools are data**: a single `lib/tools.ts` registry drives the canvas

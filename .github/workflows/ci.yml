@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  renderer:
+    name: Renderer (lint · typecheck · build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Lint
+        run: pnpm --filter renderer lint
+      - name: Typecheck
+        run: pnpm --filter renderer typecheck
+      - name: Build
+        run: pnpm --filter renderer build
+
+  rust:
+    name: Rust engine (cargo test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Tauri system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libssl-dev
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - name: cargo test
+        working-directory: src-tauri
+        run: cargo test --locked
+
+  go-engine:
+    name: Go engine (build · vet · test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: services/pdf-engine/go.mod
+          cache-dependency-path: services/pdf-engine/go.sum
+      - name: build
+        working-directory: services/pdf-engine
+        run: go build ./...
+      - name: vet
+        working-directory: services/pdf-engine
+        run: go vet ./...
+      - name: test
+        working-directory: services/pdf-engine
+        run: go test ./...
