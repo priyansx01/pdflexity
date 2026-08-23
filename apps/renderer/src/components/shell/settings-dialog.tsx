@@ -79,7 +79,8 @@ export function SettingsDialog({
           <div className="rounded-lg px-2 py-2.5">
             <p className="text-[13px] font-medium">Where to store PDF files</p>
             <p className="mb-2 text-[11px] text-muted-foreground">
-              Save dialogs start here. You can always pick another folder per file.
+              PDFs save straight here in one click — no dialog each time.
+              Name collisions get a " (1)" suffix. Use Save as… to pick another folder.
             </p>
             <div className="flex items-center gap-2">
               <div
@@ -107,7 +108,7 @@ export function SettingsDialog({
             )}
             <p className="mt-2 flex items-center gap-1.5 text-[11px] text-muted-foreground">
               <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-emerald" />
-              PDFs are never written without the save dialog.
+              Files are written only to the folder you chose — nothing leaves your device.
             </p>
           </div>
 

@@ -9,10 +9,23 @@ interface SuccessCardProps {
   downloadUrl: string
   onReset: () => void
   marksApplied: number
+  /** When provided, Download saves through the desktop adapter instead of a browser download. */
+  onSave?: () => Promise<string | null>
 }
 
-export function SuccessCard({ fileName, downloadUrl, onReset, marksApplied }: SuccessCardProps) {
-  const handleDownload = () => {
+export function SuccessCard({ fileName, downloadUrl, onReset, marksApplied, onSave }: SuccessCardProps) {
+  const [saving, setSaving] = React.useState(false)
+
+  const handleDownload = async () => {
+    if (onSave) {
+      setSaving(true)
+      try {
+        await onSave()
+      } finally {
+        setSaving(false)
+      }
+      return
+    }
     const a = document.createElement("a")
     a.href = downloadUrl
     a.download = fileName
@@ -59,10 +72,11 @@ export function SuccessCard({ fileName, downloadUrl, onReset, marksApplied }: Su
             </Button>
             <Button
               onClick={handleDownload}
-              className="flex-1 h-9 text-sm bg-[#10b981] hover:bg-[#059669] shadow-sm"
+              disabled={saving}
+              className="flex-1 h-9 text-sm bg-[#10b981] hover:bg-[#059669] shadow-sm disabled:opacity-50"
             >
               <Download className="h-4 w-4 mr-2" />
-              Download
+              {saving ? "Saving…" : "Download"}
             </Button>
           </div>
         </div>

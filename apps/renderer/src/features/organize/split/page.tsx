@@ -1,6 +1,9 @@
 "use client"
 
 import * as React from "react"
+import { basename } from "@tauri-apps/api/path"
+import { getErrorMessage } from "@/lib/utils"
+import { savePdfAuto, bytesToB64 } from "@/lib/desktop"
 import { useSplitStore } from "@/stores/use-split-store"
 import { useRecent } from "@/stores/use-recent-store"
 import { DropZone } from "./components/drop-zone"
@@ -21,15 +24,19 @@ export function SplitPage() {
   const mergeOutput = useSplitStore(state => state.mergeOutput)
   const file = useSplitStore(state => state.file)
 
+  // Outputs awaiting save: name + base64 payload (Recent records the path
+  // only once something is actually written to disk).
+  const [outputs, setOutputs] = React.useState<{ name: string; b64: string }[]>([])
+
   const handleSplit = async () => {
     if (!file) return
     setStep("processing")
     setError(null)
-    
+
     try {
       const buffer = await file.arrayBuffer()
       let pageRanges: string[] = []
-      
+
       if (mode === "range") {
         pageRanges = ranges.map(r => r.from === r.to ? `${r.from}` : `${r.from}-${r.to}`)
       } else if (mode === "pages") {
@@ -37,48 +44,36 @@ export function SplitPage() {
       } else {
         throw new Error("Size mode is not yet implemented.")
       }
-      
+
       const result = await window.electronAPI?.pdf.split(buffer, file.name, pageRanges, mergeOutput)
-      
+
       if (!result) throw new Error("Electron API is not available")
       if (!result.success) {
         throw new Error(result.error)
       }
-      
+
       if (result.isMultiple) {
-        // Simple fallback: trigger multiple downloads for now,
-        // or a ZIP if we want to add JSZip later.
-        // For now, downloading them sequentially.
-        result.data.forEach((fileObj, index) => {
-          setTimeout(() => {
-            const blob = new Blob([fileObj.buffer], { type: "application/pdf" })
-            const url = URL.createObjectURL(blob)
-            const a = document.createElement("a")
-            a.href = url
-            a.download = fileObj.name
-            a.click()
-            URL.revokeObjectURL(url)
-          }, index * 300)
-        })
+        setOutputs(result.data.map(f => ({ name: f.name, b64: bytesToB64(f.buffer) })))
       } else {
-        const blob = new Blob([result.data], { type: "application/pdf" })
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement("a")
-        a.href = url
-        a.download = result.fileName
-        a.click()
-        URL.revokeObjectURL(url)
+        setOutputs([{ name: result.fileName, b64: bytesToB64(result.data) }])
       }
-      
       setStep("success")
-      const outName = result.isMultiple
-        ? `${result.data.length} files`
-        : result.fileName
-      useRecent.getState().add({ toolId: "split", fileName: outName })
-    } catch (err: any) {
-      setError(err.message || "Failed to split PDF")
+    } catch (err: unknown) {
+      setError(getErrorMessage(err) || "Failed to split PDF")
       setStep("split")
     }
+  }
+
+  /** Save every output through the desktop adapter; record paths in Recent. */
+  const handleSaveOutputs = async (): Promise<string | null> => {
+    let last: string | null = null
+    for (const out of outputs) {
+      const p = await savePdfAuto(out.name, out.b64)
+      if (!p) continue
+      last = p
+      useRecent.getState().add({ toolId: "split", fileName: await basename(p), path: p })
+    }
+    return last
   }
 
   if (step === "upload") {
@@ -93,13 +88,18 @@ export function SplitPage() {
     return (
       <div className="flex h-full w-full items-center justify-center p-6">
         <SuccessCard
-          fileName="Split_Documents.pdf"
+          fileName={outputs.length === 1 ? outputs[0].name : `${outputs.length} documents`}
           downloadUrl="#"
           onReset={reset}
           title="Split Successfully"
-          description="Your PDF file has been successfully split."
+          description={
+            outputs.length === 1
+              ? "Your PDF file has been successfully split."
+              : `Split into ${outputs.length} documents — they will be saved one by one.`
+          }
           primaryActionText="Save Split PDF"
           secondaryActionText="Split More"
+          onSave={handleSaveOutputs}
         />
       </div>
     )

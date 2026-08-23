@@ -2,7 +2,6 @@
 
 import * as React from "react"
 import { useRedactStore } from "@/stores/use-redact-store"
-import { useRecent } from "@/stores/use-recent-store"
 import { Button } from "@/components/ui/button"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { 
@@ -43,8 +42,8 @@ export function Toolbar({ onPreview }: ToolbarProps) {
       const blob = new Blob([Uint8Array.from(atob(result.data), c => c.charCodeAt(0))], { type: "application/pdf" })
       const url = URL.createObjectURL(blob)
 
-      store.setResult(url, result.fileName, result.marksApplied)
-      useRecent.getState().add({ toolId: "redact", fileName: result.fileName })
+      // Recent is recorded by the success card once the file is saved.
+      store.setResult(url, result.fileName, result.marksApplied, result.data)
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to apply redactions"
       store.setError(message)

@@ -7,6 +7,7 @@ import { PanelLeftClose, PanelLeftOpen, Settings } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useRecent } from "@/stores/use-recent-store";
 import { relativeTime } from "@/lib/relative-time";
+import { revealInFolder } from "@/lib/desktop";
 import { getTool, type Tool, type ToolGroup } from "@/lib/tools";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -98,13 +99,19 @@ function RecentList() {
         <ul className="space-y-px">
           {recent.slice(0, 3).map((r) => {
             const tool = getTool(r.toolId);
+            // Saved outputs open their location in the OS file manager;
+            // anything without a path falls back to the tool page.
+            const handleClick = () => {
+              if (r.path) revealInFolder(r.path).catch(() => {});
+              else if (tool) router.push(tool.href);
+            };
             return (
               <li key={`${r.toolId}:${r.fileName}`}>
                 <button
                   type="button"
-                  onClick={() => tool && router.push(tool.href)}
-                  disabled={!tool}
-                  title={`${tool?.name ?? r.toolId} · ${r.fileName}`}
+                  onClick={handleClick}
+                  disabled={!r.path && !tool}
+                  title={`${tool?.name ?? r.toolId} · ${r.fileName}${r.path ? `\n${r.path}` : ""}`}
                   className="flex w-full min-w-0 items-center gap-2 rounded-lg px-2 py-1.5 text-left text-muted-foreground transition-colors hover:bg-surface-raised hover:text-foreground focus-visible:ring-2 focus-visible:ring-emerald/50"
                 >
                   <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald/60" aria-hidden />

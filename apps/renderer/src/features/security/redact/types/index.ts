@@ -54,5 +54,7 @@ export interface RedactionState {
   error: string | null
   resultUrl: string | null
   resultFileName: string | null
+  /** Base64 of the redacted output — kept so Save can write through the desktop adapter. */
+  resultB64: string | null
   marksApplied: number
 }
