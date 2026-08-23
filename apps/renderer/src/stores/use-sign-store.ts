@@ -10,7 +10,7 @@ interface SignStore extends SignState {
   setSignatures: (signatures: VerifiedSignature[]) => void
   setStep: (step: SignState['step']) => void
   setError: (msg: string | null) => void
-  setResult: (downloadUrl: string, downloadName: string) => void
+  setResult: (downloadUrl: string, downloadName: string, resultB64?: string | null) => void
   setFormData: (data: Partial<Pick<SignState, 'reason' | 'location' | 'contact' | 'showName' | 'showDate' | 'showReason'>>) => void
   reset: () => void
 }
@@ -29,6 +29,7 @@ const initialState: SignState = {
   errorMessage: null,
   downloadUrl: null,
   downloadName: null,
+  resultB64: null,
   reason: "",
   location: "",
   contact: "",
@@ -49,11 +50,13 @@ export const useSignStore = create<SignStore>((set) => ({
   setStep: (step) => set({ step, errorMessage: null }),
   setError: (errorMessage) => set({ errorMessage, step: "error" }),
   
-  setResult: (downloadUrl, downloadName) => set({
-    step: "success",
-    downloadUrl,
-    downloadName,
-    errorMessage: null
+  setResult: (downloadUrl, downloadName, resultB64 = null) => set((state) => {
+    // Revoke the previous result URL so re-signing doesn't leak a Blob URL
+    // holding the full PDF bytes.
+    if (state.downloadUrl && state.downloadUrl !== downloadUrl) {
+      URL.revokeObjectURL(state.downloadUrl)
+    }
+    return { step: "success", downloadUrl, downloadName, resultB64, errorMessage: null }
   }),
 
   setFormData: (data) => set((state) => ({ ...state, ...data })),

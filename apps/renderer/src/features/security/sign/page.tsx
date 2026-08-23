@@ -1,7 +1,10 @@
 "use client"
 
 import * as React from "react"
+import { basename } from "@tauri-apps/api/path"
 import { useSignStore } from "@/stores/use-sign-store"
+import { useRecent } from "@/stores/use-recent-store"
+import { savePdfAuto } from "@/lib/desktop"
 import { PDFViewer } from "./components/pdf-viewer"
 import { DocumentPanel, CertificatePanel, SignaturePanel } from "./components/sidebar-panels"
 import { VerifyPanel } from "./components/verify-panel"
@@ -35,8 +38,29 @@ function StepDetail({ icon: Icon, text, hint, done = false }: {
 export function SignPage() {
   const store = useSignStore()
 
+  // Release the loaded PDF (and revoke any result URL) when leaving the tool —
+  // the store is a module-global singleton and would otherwise retain the full
+  // document across navigation.
+  React.useEffect(() => {
+    return () => useSignStore.getState().reset()
+  }, [])
+
   const [dragging, setDragging] = React.useState(false)
   const fileInputRef = React.useRef<HTMLInputElement>(null)
+
+  /** Save the signed output through the desktop adapter; record path in Recent. */
+  const handleSaveSigned = async (): Promise<string | null> => {
+    if (!store.downloadName || !store.resultB64) return null
+    const p = await savePdfAuto(store.downloadName, store.resultB64)
+    if (p) {
+      useRecent.getState().add({
+        toolId: "sign",
+        fileName: await basename(p),
+        path: p,
+      })
+    }
+    return p
+  }
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault()
@@ -201,15 +225,16 @@ export function SignPage() {
 
         {/* Main Canvas */}
         <div className="flex-1 bg-muted/10 relative overflow-hidden flex flex-col">
-           {store.step === "success" && store.downloadUrl ? (
-              <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/95 backdrop-blur-sm">
-                 <SuccessCard
-                   fileName={store.downloadName || "signed_document.pdf"}
-                   downloadUrl={store.downloadUrl}
-                   onReset={() => store.reset()}
-                 />
-              </div>
-           ) : null}
+            {store.step === "success" && store.downloadUrl ? (
+               <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/95 backdrop-blur-sm">
+                  <SuccessCard
+                    fileName={store.downloadName || "signed_document.pdf"}
+                    downloadUrl={store.downloadUrl}
+                    onReset={() => store.reset()}
+                    onSave={handleSaveSigned}
+                  />
+               </div>
+            ) : null}
 
            {/* Page navigation */}
            {store.pdfFile && (

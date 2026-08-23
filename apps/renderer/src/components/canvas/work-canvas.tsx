@@ -4,9 +4,10 @@ import * as React from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { Upload, FileText, X, Loader2, CheckCircle2, AlertCircle, Lock, ChevronRight, Download, FolderOpen } from "lucide-react";
 
+import { basename } from "@tauri-apps/api/path";
 import { getTool, ROTATION_DEGREES } from "@/lib/tools";
 import type { RunOutcome } from "@/lib/tools";
-import { openPdf, onFileDrop, savePdfAs, revealInFolder, type LoadedFile } from "@/lib/desktop";
+import { openPdf, onFileDrop, savePdfAs, savePdfAuto, revealInFolder, type LoadedFile } from "@/lib/desktop";
 import { getPdfMeta, renderThumbnail } from "@/lib/pdf";
 import { useCanvasState } from "@/stores/use-canvas-state";
 import { useRecent } from "@/stores/use-recent-store";
@@ -50,33 +51,13 @@ export function WorkCanvas({ toolId }: { toolId: string }) {
     else if (phase === "done") setCanvasState("COMPLETE");
   }, [phase, setCanvasState]);
 
-  if (!tool) {
-    return <Centered>Unknown tool.</Centered>;
-  }
-  if (tool.complex) {
-    return (
-      <Centered>
-        <p className="text-muted-foreground">
-          {tool.name} uses a bespoke canvas — wired in a follow-up step.
-        </p>
-      </Centered>
-    );
-  }
-  if (tool.available === false) {
-    const Icon = tool.icon;
-    return (
-      <Centered>
-        <div className="flex h-14 w-14 items-center justify-center rounded-xl border border-emerald/25 bg-emerald-soft">
-          <Icon className="h-7 w-7 text-emerald" />
-        </div>
-        <h2 className="mt-4 text-[16px] font-bold">{tool.name}</h2>
-        <p className="mt-1 max-w-[320px] text-[13px] text-muted-foreground">
-          {tool.subtitle} — this tool is on the roadmap and needs engine support
-          first. Watch the repo for updates.
-        </p>
-      </Centered>
-    );
-  }
+  // Deferred "done" transition timer — cleared on unmount so it can't fire
+  // setState against an unmounted component. Declared before the early returns
+  // below to keep hook order stable (Rules of Hooks).
+  const doneTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  React.useEffect(() => () => {
+    if (doneTimer.current) clearTimeout(doneTimer.current);
+  }, []);
 
   const hasOptions = !!tool && tool.options.length > 0;
   const runStep = hasOptions ? 3 : 2;
@@ -132,6 +113,35 @@ export function WorkCanvas({ toolId }: { toolId: string }) {
     return onFileDrop({ onDrop: (fs) => filesRef.current(fs) });
   }, [dropEnabled]);
 
+  // Early returns come after all hooks so hook order stays stable per render.
+  if (!tool) {
+    return <Centered>Unknown tool.</Centered>;
+  }
+  if (tool.complex) {
+    return (
+      <Centered>
+        <p className="text-muted-foreground">
+          {tool.name} uses a bespoke canvas — wired in a follow-up step.
+        </p>
+      </Centered>
+    );
+  }
+  if (tool.available === false) {
+    const Icon = tool.icon;
+    return (
+      <Centered>
+        <div className="flex h-14 w-14 items-center justify-center rounded-xl border border-emerald/25 bg-emerald-soft">
+          <Icon className="h-7 w-7 text-emerald" />
+        </div>
+        <h2 className="mt-4 text-[16px] font-bold">{tool.name}</h2>
+        <p className="mt-1 max-w-[320px] text-[13px] text-muted-foreground">
+          {tool.subtitle} — this tool is on the roadmap and needs engine support
+          first. Watch the repo for updates.
+        </p>
+      </Centered>
+    );
+  }
+
   const handleRun = async () => {
     if (!canRun) return;
     if (files.some((f) => f.buffer.byteLength === 0)) {
@@ -150,13 +160,10 @@ export function WorkCanvas({ toolId }: { toolId: string }) {
       });
       setProgress(100);
       setDurationMs(performance.now() - startedAt);
-      // Spec: 100% + 260ms -> done.
-      setTimeout(() => {
+      // Spec: 100% + 260ms -> done. Recent is recorded after saving.
+      doneTimer.current = setTimeout(() => {
         setResult(outcome);
         setPhase("done");
-        const outName =
-          outcome.kind === "file" ? outcome.fileName : `${outcome.files.length} files`;
-        useRecent.getState().add({ toolId, fileName: outName });
       }, 260);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -277,7 +284,7 @@ export function WorkCanvas({ toolId }: { toolId: string }) {
             transition={STEP_SPRING}
             className="flex flex-1 items-center"
           >
-            <DoneCard toolName={tool.name} engine={tool.engine} durationMs={durationMs} result={result} onAnother={reset} />
+            <DoneCard toolId={toolId} toolName={tool.name} engine={tool.engine} durationMs={durationMs} result={result} onAnother={reset} />
           </motion.div>
         )}
 
@@ -420,7 +427,6 @@ function DocumentCard({
         )}
       >
         {thumb ? (
-          // eslint-disable-next-line @next/next/no-img-element
           <motion.img
             initial={false}
             animate={{ rotate: rotationDeg }}
@@ -523,19 +529,22 @@ function ProgressCard({ verb, progress }: { verb: string; progress: number }) {
 }
 
 function DoneCard({
+  toolId,
   toolName,
   engine,
   durationMs,
   result,
   onAnother,
 }: {
+  toolId: string;
   toolName: string;
   engine: string;
   durationMs: number;
   result: RunOutcome;
   onAnother: () => void;
 }) {
-  const [savedPath, setSavedPath] = React.useState<string | null>(null);
+  const [savedPaths, setSavedPaths] = React.useState<string[]>([]);
+  const [saving, setSaving] = React.useState(false);
 
   const name = result.kind === "file" ? result.fileName : `${result.files.length} files`;
   const size =
@@ -543,19 +552,56 @@ function DoneCard({
       ? approxBase64Size(result.dataB64)
       : result.files.reduce((a, f) => a + approxBase64Size(f.dataB64), 0);
 
+  // Record in Recent only once something is actually on disk.
+  const recordSaved = React.useCallback(
+    async (paths: string[]) => {
+      if (!paths.length) return;
+      const { add } = useRecent.getState();
+      for (const p of paths) {
+        add({ toolId, fileName: await basename(p), path: p });
+      }
+    },
+    [toolId],
+  );
+
+  /** One-click save: straight to the configured folder (or dialog fallback). */
   const handleSave = async () => {
+    setSaving(true);
     try {
+      const paths: string[] = [];
+      if (result.kind === "file") {
+        const p = await savePdfAuto(result.fileName, result.dataB64);
+        if (p) paths.push(p);
+      } else {
+        for (const f of result.files) {
+          const p = await savePdfAuto(f.name, f.dataB64);
+          if (p) paths.push(p);
+        }
+      }
+      setSavedPaths(paths);
+      void recordSaved(paths);
+    } catch {
+      /* ignore — the dialog fallback surfaces its own errors */
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  /** Always-open dialog save for picking a different location. */
+  const handleSaveAs = async () => {
+    try {
+      const paths: string[] = [];
       if (result.kind === "file") {
         const p = await savePdfAs(result.fileName, result.dataB64);
-        if (p) setSavedPath(p);
+        if (p) paths.push(p);
       } else {
-        let last: string | null = null;
         for (const f of result.files) {
           const p = await savePdfAs(f.name, f.dataB64);
-          if (p) last = p;
+          if (p) paths.push(p);
         }
-        if (last) setSavedPath(last);
       }
+      setSavedPaths(paths);
+      void recordSaved(paths);
     } catch {
       /* ignore */
     }
@@ -587,19 +633,38 @@ function DoneCard({
         <Stat label="Uploads" value="0" />
       </div>
 
+      {/* Saved location feedback */}
+      {savedPaths.length > 0 && (
+        <div className="mt-3 flex items-center gap-2 rounded-lg border border-hairline bg-surface-raised/40 px-3 py-2 text-[12px] text-muted-foreground">
+          <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald" />
+          <span className="min-w-0 flex-1 truncate" title={savedPaths.join("\n")}>
+            {savedPaths.length === 1 ? savedPaths[0] : `${savedPaths.length} files saved`}
+          </span>
+        </div>
+      )}
+
       {/* Actions */}
       <div className="mt-5 flex flex-wrap gap-2">
         <button
           type="button"
           onClick={handleSave}
-          className="flex items-center gap-1.5 rounded-lg bg-emerald px-4 py-2 text-[13px] font-semibold text-emerald-foreground hover:brightness-105"
+          disabled={saving}
+          className="flex items-center gap-1.5 rounded-lg bg-emerald px-4 py-2 text-[13px] font-semibold text-emerald-foreground hover:brightness-105 disabled:opacity-60"
         >
-          <Download className="h-4 w-4" /> Save as…
+          <Download className="h-4 w-4" /> {saving ? "Saving…" : savedPaths.length ? "Save again" : "Save"}
         </button>
         <button
           type="button"
-          disabled={!savedPath}
-          onClick={() => savedPath && revealInFolder(savedPath)}
+          onClick={handleSaveAs}
+          disabled={saving}
+          className="flex items-center gap-1.5 rounded-lg border border-hairline px-4 py-2 text-[13px] hover:bg-surface-raised disabled:opacity-40"
+        >
+          Save as…
+        </button>
+        <button
+          type="button"
+          disabled={!savedPaths.length}
+          onClick={() => savedPaths.length && revealInFolder(savedPaths[savedPaths.length - 1])}
           className="flex items-center gap-1.5 rounded-lg border border-hairline px-4 py-2 text-[13px] hover:bg-surface-raised disabled:opacity-40"
         >
           <FolderOpen className="h-4 w-4" /> Reveal in folder

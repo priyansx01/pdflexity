@@ -6,7 +6,7 @@
  */
 
 import { open, save } from "@tauri-apps/plugin-dialog";
-import { readFile as fsReadFile, writeFile as fsWriteFile } from "@tauri-apps/plugin-fs";
+import { exists, readFile as fsReadFile, writeFile as fsWriteFile } from "@tauri-apps/plugin-fs";
 import { basename } from "@tauri-apps/api/path";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -53,8 +53,10 @@ export async function readFiles(paths: string[]): Promise<LoadedFile[]> {
       const buffer = new ArrayBuffer(bytes.byteLength);
       new Uint8Array(buffer).set(bytes);
       out.push({ buffer, name: await basename(p) });
-    } catch {
-      // Skip unreadable entries rather than failing the whole batch.
+    } catch (e) {
+      // Skip unreadable entries rather than failing the whole batch, but make
+      // the skip diagnosable instead of silent.
+      console.warn(`[desktop] skipped unreadable file: ${p}`, e);
     }
   }
   if (!out.length) throw new Error("Couldn't read the selected file(s).");
@@ -97,6 +99,34 @@ export async function savePdfAs(defaultName: string, dataB64: string): Promise<s
   return path;
 }
 
+/**
+ * One-click save: when a default save folder is configured, write straight to
+ * it (suffixing "(1)", "(2)"… on name collisions) — no dialog. Falls back to
+ * the interactive dialog when no folder is set or the direct write fails
+ * (folder moved/removed, permissions). Returns the saved path, or null if the
+ * fallback dialog was cancelled.
+ */
+export async function savePdfAuto(fileName: string, dataB64: string): Promise<string | null> {
+  const { useSettings } = await import("@/lib/settings");
+  const dir = useSettings.getState().defaultSaveDir;
+  if (!dir) return savePdfAs(fileName, dataB64);
+
+  try {
+    let target = joinPath(dir, fileName);
+    const dot = fileName.lastIndexOf(".");
+    const stem = dot > 0 ? fileName.slice(0, dot) : fileName;
+    const ext = dot > 0 ? fileName.slice(dot) : "";
+    for (let n = 1; await exists(target); n++) {
+      target = joinPath(dir, `${stem} (${n})${ext}`);
+    }
+    await fsWriteFile(target, b64ToBytes(dataB64));
+    return target;
+  } catch {
+    // Direct write failed — never lose the result over a stale folder.
+    return savePdfAs(fileName, dataB64);
+  }
+}
+
 /** Join a directory and filename across platform separators. */
 function joinPath(dir: string, name: string): string {
   const sep = dir.includes("\\") ? "\\" : "/";
@@ -130,6 +160,7 @@ export type FileDropHandlers = {
 export function onFileDrop(handlers: FileDropHandlers): () => void {
   const ref: { current: FileDropHandlers } = { current: handlers };
   let unlisten: (() => void) | undefined;
+  let cancelled = false;
   let over = false;
 
   getCurrentWebview()
@@ -152,10 +183,16 @@ export function onFileDrop(handlers: FileDropHandlers): () => void {
         if (files.length) ref.current.onDrop?.(files);
       }
     })
-    .then((u) => (unlisten = u))
+    .then((u) => {
+      // If the caller already cleaned up before the listener finished
+      // registering, unsubscribe immediately so it can't leak.
+      if (cancelled) u();
+      else unlisten = u;
+    })
     .catch(() => {});
 
   return () => {
+    cancelled = true;
     unlisten?.();
   };
 }

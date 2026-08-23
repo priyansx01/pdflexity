@@ -1,37 +1,90 @@
 "use client";
 
-// Lazily load pdf.js (legacy build) with the worker configured the same way the
-// existing viewers do, and expose best-effort page-count + encryption detection.
-// NEVER throws — callers get nulls on failure.
+/**
+ * pdf.js facade — lazy loader + minimal-but-accurate structural types, plus
+ * best-effort metadata/thumbnail helpers. NEVER throws; callers get nulls.
+ * pdf.js neutralizes (detaches) the buffers it renders — every entry point
+ * copies the input first.
+ */
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let pdfjsLib: any = null;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let pdfjsLibPromise: Promise<any> | null = null;
+// ─── Structural types for the pdf.js legacy build ────────────────────────────
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function getPdfjs(): Promise<any> {
+export interface PdfViewport {
+  width: number;
+  height: number;
+  /** [scaleX, skewX, skewY, scaleY, translateX, translateY] */
+  transform: number[];
+}
+
+/** A single text run from `getTextContent()` (pdf.js `TextItem`). */
+export interface PdfTextItem {
+  str: string;
+  transform: number[];
+  width: number;
+  height: number;
+}
+
+export interface PdfTextContent {
+  items: PdfTextItem[];
+}
+
+/** In-flight render; call `cancel()` on unmount / before re-rendering. */
+export interface PdfRenderTask {
+  promise: Promise<void>;
+  cancel(): void;
+}
+
+export interface PdfPage {
+  getViewport(options: { scale: number }): PdfViewport;
+  render(options: {
+    canvasContext: CanvasRenderingContext2D;
+    viewport: PdfViewport;
+    transform?: number[];
+  }): PdfRenderTask;
+  getTextContent(): Promise<PdfTextContent>;
+}
+
+export interface PdfDocument {
+  numPages: number;
+  getPage(pageNumber: number): Promise<PdfPage>;
+  destroy(): Promise<void>;
+}
+
+export interface PdfGetDocumentTask {
+  promise: Promise<PdfDocument>;
+}
+
+export interface PdfJsLib {
+  getDocument(options: { data: Uint8Array; password?: string }): PdfGetDocumentTask;
+  GlobalWorkerOptions: { workerSrc: string };
+}
+
+// ─── Lazy singleton ───────────────────────────────────────────────────────────
+
+let pdfjsLib: PdfJsLib | null = null;
+let pdfjsLibPromise: Promise<PdfJsLib> | null = null;
+
+export async function getPdfjs(): Promise<PdfJsLib> {
   if (pdfjsLib) return pdfjsLib;
   if (pdfjsLibPromise) return pdfjsLibPromise;
   pdfjsLibPromise = import("pdfjs-dist/legacy/build/pdf.mjs").then((lib) => {
     const origin = typeof window !== "undefined" ? window.location.origin : "";
     lib.GlobalWorkerOptions.workerSrc = `${origin}/pdf.worker.min.mjs`;
-    pdfjsLib = lib;
-    return lib;
+    pdfjsLib = lib as unknown as PdfJsLib;
+    return pdfjsLib;
   });
   return pdfjsLibPromise;
 }
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 export async function getPdfMeta(
   buffer: ArrayBuffer,
 ): Promise<{ pages: number | null; encrypted: boolean }> {
   try {
     const lib = await getPdfjs();
-    // Copy the buffer — pdf.js neutralizes (detaches) the data it's handed.
     const data = new Uint8Array(buffer.slice(0));
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const task = lib.getDocument({ data, password: "" });
-    const pdf = await task.promise;
+    const pdf = await lib.getDocument({ data, password: "" }).promise;
     const pages = pdf.numPages;
     try {
       await pdf.destroy();
@@ -58,7 +111,6 @@ export async function renderThumbnail(
   try {
     const lib = await getPdfjs();
     const data = new Uint8Array(buffer.slice(0));
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const pdf = await lib.getDocument({ data, password: "" }).promise;
     const page = await pdf.getPage(1);
     const base = page.getViewport({ scale: 1 });

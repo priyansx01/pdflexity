@@ -15,9 +15,10 @@ interface CompareStore extends CompareState {
   setError: (msg: string | null) => void
   clearA: () => void
   clearB: () => void
+  reset: () => void
 }
 
-export const useCompareStore = create<CompareStore>((set) => ({
+const initialState: CompareState = {
   step:         "idle",
   fileA:        null,
   fileB:        null,
@@ -32,6 +33,10 @@ export const useCompareStore = create<CompareStore>((set) => ({
   searchQuery:  "",
   errorMessage: null,
   syncScroll:   true,
+}
+
+export const useCompareStore = create<CompareStore>((set) => ({
+  ...initialState,
 
   setFileA: (fileA, bufferA) => set({ fileA, bufferA }),
   setFileB: (fileB, bufferB) => set({ fileB, bufferB }),
@@ -56,4 +61,7 @@ export const useCompareStore = create<CompareStore>((set) => ({
 
   clearA: () => set({ fileA: null, bufferA: null, diffs: [], stats: null, step: "idle" }),
   clearB: () => set({ fileB: null, bufferB: null, diffs: [], stats: null, step: "idle" }),
+
+  // Release both loaded PDFs and diffs (the store is a module-global singleton).
+  reset: () => set({ ...initialState }),
 }))
