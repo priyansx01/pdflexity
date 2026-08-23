@@ -18,8 +18,15 @@ export function useCompress() {
   // Subscribe to engine progress once.
   React.useEffect(() => {
     let un: (() => void) | undefined;
-    onJobProgress((pct) => setProgress(Math.max(0, Math.min(100, pct)))).then((u) => (un = u));
-    return () => un?.();
+    let cancelled = false;
+    onJobProgress((pct) => setProgress(Math.max(0, Math.min(100, pct)))).then((u) => {
+      if (cancelled) u();
+      else un = u;
+    });
+    return () => {
+      cancelled = true;
+      un?.();
+    };
   }, []);
 
   const compress = React.useCallback(

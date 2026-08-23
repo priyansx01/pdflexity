@@ -76,15 +76,10 @@ pub async fn pdf_ocr_cancel(_job_id: String, app: AppHandle) -> OpResult {
     let Some(bridge) = bridge(&app).await else {
         return OpResult::err("PDF engine is not available");
     };
-    let result = async {
-        let resp = bridge.send(Command::new("ocr-cancel")).await?;
-        if !resp.success {
-            anyhow::bail!(resp.error.unwrap_or_else(|| "Failed to cancel OCR job".into()));
-        }
-        Ok::<_, anyhow::Error>(())
-    }
-    .await;
-    match result {
+    // Cancel must bypass the single in-flight slot (held by the running OCR
+    // stream). The bridge writes the control command directly; the running job
+    // then resolves itself via its terminal "cancelled" stream event.
+    match bridge.send_control(Command::new("ocr-cancel")).await {
         Ok(()) => OpResult::ok(Value::Null),
         Err(e) => OpResult::err(format!("{e:#}")),
     }

@@ -3,23 +3,23 @@ import type { NextConfig } from "next";
 const isProd = process.env.NODE_ENV === "production";
 
 const nextConfig: NextConfig = {
-  // Export as static files for Electron in production
+  // Static export: Tauri serves the built files from `out/` in production.
   output: isProd ? "export" : undefined,
 
-  // Required for Electron file:// protocol in production
+  // Relative asset paths so the Tauri asset protocol resolves them in production.
   assetPrefix: isProd ? "./" : undefined,
 
-  // Disable image optimization for Electron static export
+  // No Next image optimization server in a static export.
   images: {
     unoptimized: isProd,
   },
 
-  // Disable server-based features not needed in Electron
+  // Emit directory-style routes (index.html) for the static export.
   trailingSlash: isProd,
 
-  // Environment variables accessible in renderer
+  // Marks the renderer as running inside the desktop shell.
   env: {
-    IS_ELECTRON: "true",
+    IS_DESKTOP: "true",
   },
 };
 

@@ -102,6 +102,20 @@ export function createElectronAPI() {
       };
     },
 
+    rotate: (buffer: ArrayBuffer, fileName: string, angle: number, pages?: string) =>
+      call("pdf_rotate", {
+        bufferB64: arrayBufferToBase64(buffer),
+        fileName,
+        angle,
+        pages: pages ?? "",
+      }),
+
+    repair: (buffer: ArrayBuffer, fileName: string) =>
+      call("pdf_repair", {
+        bufferB64: arrayBufferToBase64(buffer),
+        fileName,
+      }),
+
     sign: (options: Record<string, unknown>) => {
       const { pdfBytes, ...rest } = options as { pdfBytes: ArrayBuffer } & Record<string, unknown>;
       return call("pdf_sign", {
@@ -216,7 +230,7 @@ export function createElectronAPI() {
 //
 // Done at module load (not in a React effect) so deep child effects that read
 // `window.electronAPI` (e.g. the OCR hook) see it on first render.
-// `electron-env.d.ts` owns the Window type; we assign loosely to stay compatible.
+// Types live in `lib/backend-types.ts`; we assign loosely to stay compatible.
 
 if (typeof window !== "undefined" && !(window as { electronAPI?: unknown }).electronAPI) {
   (window as { electronAPI: unknown }).electronAPI = createElectronAPI();

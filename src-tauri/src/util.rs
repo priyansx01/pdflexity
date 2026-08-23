@@ -42,7 +42,6 @@ pub async fn write_file(dir: &Path, name: &str, bytes: &[u8]) -> Result<PathBuf>
 }
 
 /// Read a file to bytes.
-#[allow(dead_code)]
 pub async fn read_file(path: &Path) -> Result<Vec<u8>> {
     fs::read(path)
         .await

@@ -12,11 +12,12 @@ import { DiffPanel }   from "./components/diff-panel"
 import { Toolbar }     from "./components/toolbar"
 
 import { useCompareStore } from "@/stores/use-compare-store"
+import { getElectronAPI } from "@/lib/backend-types"
 import { useRecent } from "@/stores/use-recent-store"
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function generateTextReport(store: ReturnType<typeof useCompareStore>): string {
+function generateTextReport(store: ReturnType<typeof useCompareStore.getState>): string {
   const lines: string[] = []
   lines.push("PDF Comparison Report")
   lines.push("=".repeat(40))
@@ -50,6 +51,11 @@ function generateTextReport(store: ReturnType<typeof useCompareStore>): string {
 
 export default function ComparePdfPage() {
   const store = useCompareStore()
+
+  // Free both loaded PDFs and diffs when leaving the tool.
+  React.useEffect(() => {
+    return () => useCompareStore.getState().reset()
+  }, [])
 
   // Scroll sync refs
   const scrollRefA = React.useRef<HTMLDivElement>(null!)
@@ -106,8 +112,7 @@ export default function ComparePdfPage() {
   async function runCompare(bufA: ArrayBuffer, bufB: ArrayBuffer) {
     store.setStep("loading")
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const api = (window as any).electronAPI?.pdf
+      const api = getElectronAPI()?.pdf
       if (!api?.compare) {
         throw new Error("pdf:compare IPC not available — is Electron running?")
       }
@@ -119,8 +124,7 @@ export default function ComparePdfPage() {
         return
       }
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const raw = result.data as any
+      const raw = result.data
       const diffs: PageDiff[] = raw.pages
       const stats: CompareStats = {
         totalAdded:   raw.totalAdded,

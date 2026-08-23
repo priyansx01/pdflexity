@@ -7,7 +7,6 @@ import { FileText, Lock, X } from "lucide-react";
 import { openPdf, onFileDrop } from "@/lib/desktop";
 import { getPdfMeta, renderThumbnail } from "@/lib/pdf";
 import { useCanvasState } from "@/stores/use-canvas-state";
-import { useRecent } from "@/stores/use-recent-store";
 import { cn } from "@/lib/utils";
 
 import type { LoadedDoc } from "@/features/compress/types";
@@ -65,7 +64,7 @@ export default function CompressPage() {
     try {
       const r = await compress(doc, settings, setStage);
       setResult(r);
-      useRecent.getState().add({ toolId: "compress", fileName: r.fileName });
+      // Recent is recorded by the result card once the file is saved.
       setTimeout(() => setPhase("done"), 120);
     } catch {
       setPhase("error");
@@ -280,7 +279,6 @@ function DocCard({ doc, onClear }: { doc: LoadedDoc; onClear: () => void }) {
     <div className="flex items-center gap-4 rounded-lg border border-hairline bg-surface px-4 py-3.5">
       <div className="relative flex h-32 w-24 shrink-0 items-center justify-center overflow-hidden rounded-md border border-hairline bg-surface-raised">
         {thumb ? (
-          // eslint-disable-next-line @next/next/no-img-element
           <img src={thumb} alt={`Page 1 of ${doc.name}`} className="h-full w-full object-contain" />
         ) : (
           <FileText className="h-8 w-8 text-muted-foreground/60" />

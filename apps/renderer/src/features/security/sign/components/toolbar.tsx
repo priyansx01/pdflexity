@@ -2,7 +2,8 @@
 
 import * as React from "react"
 import { useSignStore } from "@/stores/use-sign-store"
-import { useRecent } from "@/stores/use-recent-store"
+import { getElectronAPI } from "@/lib/backend-types"
+import { getErrorMessage } from "@/lib/utils"
 import { PenTool, Download, Loader2 } from "lucide-react"
 import { SuccessCard } from "@/components/shared/success-card"
 
@@ -14,16 +15,20 @@ export function SignToolbar() {
 
   const handleSign = async () => {
     if (!canSign) return
+    const api = getElectronAPI()
+    if (!api) return
+    const { pdfBytes, pdfFile, certPath, signatureZone } = store
+    if (!pdfBytes || !pdfFile || !certPath || !signatureZone) return
     setSigning(true)
     store.setError(null)
     try {
       const options = {
-        pdfBytes: Array.from(new Uint8Array(store.pdfBytes!)),
-        fileName: store.pdfFile!.name,
-        certPath: store.certPath,
+        pdfBytes,
+        fileName: pdfFile.name,
+        certPath,
         passphrase: store.passphrase,
-        page: store.signatureZone!.page,
-        zone: store.signatureZone,
+        page: signatureZone.page,
+        zone: signatureZone,
         reason: store.reason,
         location: store.location,
         contact: store.contact,
@@ -34,21 +39,21 @@ export function SignToolbar() {
         }
       }
 
-      const resp = await window.electronAPI.pdf.sign(options)
+      const resp = await api.pdf.sign(options)
       if (resp.success) {
         // Convert base64 back to Blob URL
         const binary = atob(resp.data)
         const bytes = new Uint8Array(binary.length)
         for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
         const url = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }))
-        
-        store.setResult(url, resp.fileName)
-        useRecent.getState().add({ toolId: "sign", fileName: resp.fileName })
+
+        // Recent is recorded by the success card once the file is saved.
+        store.setResult(url, resp.fileName, resp.data)
       } else {
         store.setError(resp.error)
       }
-    } catch (e: any) {
-      store.setError(e.message)
+    } catch (e: unknown) {
+      store.setError(getErrorMessage(e))
     } finally {
       setSigning(false)
     }

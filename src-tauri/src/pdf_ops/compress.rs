@@ -20,8 +20,6 @@ use std::path::Path;
 
 use anyhow::{anyhow, Context, Result};
 use flate2::read::ZlibDecoder;
-use flate2::write::ZlibEncoder;
-use flate2::Compression;
 use image::codecs::jpeg::JpegEncoder;
 use image::DynamicImage;
 use lopdf::{Document, Object, Stream};
@@ -136,7 +134,6 @@ pub fn compress_pdf(
         // Image objects live at stable addresses in lopdf's object map; edit
         // them in place via retain-style iteration.
         let mut replacements: Vec<(lopdf::ObjectId, Vec<u8>, u32, u32)> = Vec::new();
-        let mut drops: Vec<lopdf::ObjectId> = Vec::new();
 
         for (id, object) in doc.objects.iter() {
             if !is_image_object(object) {
@@ -166,9 +163,6 @@ pub fn compress_pdf(
                     skipped_codec += 1;
                 }
             }
-            if replacements.len() > 4096 {
-                drops.clear(); // sanity guard, never expected
-            }
         }
 
         // Apply replacements after the borrow of doc.objects ends.
@@ -182,7 +176,6 @@ pub fn compress_pdf(
         stats.images_recompressed = recompressed;
         stats.images_skipped_codec = skipped_codec;
         stats.images_skipped_optimal = skipped_optimal;
-        let _ = drops;
     }
 
     // ── 3. Save ──────────────────────────────────────────────────────────────
@@ -302,7 +295,7 @@ fn recompress_image(
         .get(b"Height")
         .and_then(Object::as_i64)
         .unwrap_or(0) as u32;
-    if width == 0 || height == 0 || width * height < 48 * 48 {
+    if width == 0 || height == 0 || (width as u64) * (height as u64) < 48 * 48 {
         return Err(anyhow!("tiny image, not worth re-encoding"));
     }
 
@@ -386,15 +379,6 @@ fn replace_with_jpeg(stream: &mut Stream, jpeg: Vec<u8>, width: u32, height: u32
     stream.dict.set(b"Height", Object::Integer(height as i64));
     stream.dict.set(b"Length", Object::Integer(jpeg.len() as i64));
     stream.set_content(jpeg);
-}
-
-/// Best-effort re-deflate of a stream (used by tests / future lossless-plus).
-#[allow(dead_code)]
-pub fn reflate(content: &[u8]) -> Vec<u8> {
-    let mut enc = ZlibEncoder::new(Vec::new(), Compression::best());
-    use std::io::Write;
-    let _ = enc.write_all(content);
-    enc.finish().unwrap_or_default()
 }
 
 // ─── Tests ────────────────────────────────────────────────────────────────────

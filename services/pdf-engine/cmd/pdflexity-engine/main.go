@@ -29,6 +29,10 @@ func main() {
 	log.Println("pdf-engine started, waiting for commands on stdin...")
 
 	scanner := bufio.NewScanner(os.Stdin)
+	// Commands can carry large inline JSON payloads (e.g. ocr-export embeds the
+	// full OCR result + edits). The default 64 KB token cap would silently stop
+	// the scanner mid-session and kill the engine, so raise it to 64 MB.
+	scanner.Buffer(make([]byte, 0, 1<<20), 64<<20)
 	encoder := json.NewEncoder(os.Stdout)
 
 	for scanner.Scan() {
@@ -44,7 +48,17 @@ func main() {
 		}
 
 		log.Printf("received op=%q input=%q", cmd.Op, cmd.InputPath)
-		handler.Route(encoder, cmd)
+
+		// `ocr-start` streams events for the whole job and would otherwise block
+		// this loop, so a following `ocr-cancel` could never be read until the
+		// job finished. Run it concurrently; the frontend/Rust bridge serialize
+		// ops so the only command that arrives mid-job is `ocr-cancel`, which
+		// writes nothing to stdout — no concurrent encoder writes occur.
+		if cmd.Op == "ocr-start" {
+			go handler.Route(encoder, cmd)
+		} else {
+			handler.Route(encoder, cmd)
+		}
 	}
 
 	if err := scanner.Err(); err != nil {

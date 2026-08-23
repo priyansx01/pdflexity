@@ -22,10 +22,17 @@ export function TitleBar({
   React.useEffect(() => {
     windowControls.isMaximized().then(setMaximized);
     let unlisten: (() => void) | undefined;
+    let cancelled = false;
     windowControls
       .onResized(() => windowControls.isMaximized().then(setMaximized))
-      .then((u) => (unlisten = u));
-    return () => unlisten?.();
+      .then((u) => {
+        if (cancelled) u();
+        else unlisten = u;
+      });
+    return () => {
+      cancelled = true;
+      unlisten?.();
+    };
   }, []);
 
   const minimize = () => windowControls.minimize();

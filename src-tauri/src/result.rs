@@ -1,7 +1,7 @@
 //! Frontend-facing result envelope.
 //!
 //! Every Rust command returns `OpResult`, which serializes to the discriminated
-//! union shape the frontend expects (`electron-env.d.ts`): an object with
+//! union shape the frontend expects (`lib/backend-types.ts`): an object with
 //! `success: boolean` plus whichever of `data` / `fileName` / `isMultiple` /
 //! `jobId` / `marksApplied` / `pagesAffected` / `error` are relevant.
 //!

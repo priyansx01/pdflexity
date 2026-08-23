@@ -2,37 +2,38 @@
 
 import { useCallback, useEffect, useRef } from "react"
 import { useOcrStore } from "@/stores/use-ocr-store"
+import { getElectronAPI, type OCRPagePayload, type OCRProgressEvent } from "@/lib/backend-types"
+import { getErrorMessage } from "@/lib/utils"
 import { useRecent } from "@/stores/use-recent-store"
-import type { OCRProgressEvent, OCRPageResult } from "@/features/optimize/ocr/types"
+import type { OCRPageResult, OCRStep } from "@/features/optimize/ocr/types"
 
 /**
- * Hook that wires the OCR Zustand store to Electron IPC events.
+ * Hook that wires the OCR Zustand store to the desktop backend's Tauri events.
  * Handles: starting OCR, cancelling, listening for streaming progress,
  * and exporting results.
  */
 export function useOcrPipeline() {
   const store = useOcrStore()
   const listenerRegistered = useRef(false)
+  const cancellingRef = useRef(false)
 
   // Register IPC event listeners for streaming progress
   useEffect(() => {
-    if (typeof window === "undefined" || !(window as any).electronAPI) return
+    const api = getElectronAPI()?.pdf.ocr
+    if (!api) return
     if (listenerRegistered.current) return
     listenerRegistered.current = true
 
-    const api = (window as any).electronAPI.pdf?.ocr
-    if (!api) return
-
-    api.onProgress((_event: any, data: OCRProgressEvent) => {
+    api.onProgress((_event: unknown, data: OCRProgressEvent) => {
       if (data.status) {
-        useOcrStore.getState().setStep(data.status)
+        useOcrStore.getState().setStep(data.status as OCRStep)
       }
       if (data.currentPage && data.totalPages) {
         useOcrStore.getState().setProgress(data.currentPage, data.totalPages)
       }
     })
 
-    api.onPageResult((_event: any, data: OCRProgressEvent) => {
+    api.onPageResult((_event: unknown, data: OCRPagePayload) => {
       if (data.type === "page-result" && data.pageResult) {
         useOcrStore.getState().addPageResult(data.pageResult as unknown as OCRPageResult)
       }
@@ -52,13 +53,19 @@ export function useOcrPipeline() {
     const { uploadedFile, options } = useOcrStore.getState()
     if (!uploadedFile) return
 
-    const api = (window as any).electronAPI?.pdf?.ocr
+    const api = getElectronAPI()?.pdf.ocr
     if (!api) {
-      // Fallback: use mock data for development without Electron
-      await runMockOcr()
+      // Dev-only mock so the UI can be exercised in a plain browser; the
+      // `process.env` guard lets the mock tree-shake out of production builds.
+      if (process.env.NODE_ENV !== "production") {
+        await runMockOcr()
+      } else {
+        useOcrStore.getState().setError("OCR engine is not available.")
+      }
       return
     }
 
+    cancellingRef.current = false
     useOcrStore.getState().setStep("uploading")
 
     try {
@@ -68,6 +75,13 @@ export function useOcrPipeline() {
         options.languages,
         options.dpi
       )
+
+      // A cancel resolves this call — treat it as an expected outcome, not a
+      // failure to report.
+      if (cancellingRef.current) {
+        useOcrStore.getState().setStep("idle")
+        return
+      }
 
       if (result.success) {
         useOcrStore.getState().setJobId(result.jobId)
@@ -80,21 +94,34 @@ export function useOcrPipeline() {
           useRecent.getState().add({ toolId: "ocr", fileName: uploadedFile.name })
         }
       } else {
+        // The engine reports a user cancel as an error; don't surface it.
+        if (/cancell?ed/i.test(result.error ?? "")) {
+          useOcrStore.getState().setStep("idle")
+          return
+        }
         useOcrStore.getState().setError(result.error || "OCR processing failed")
       }
-    } catch (err: any) {
-      useOcrStore.getState().setError(err.message || "OCR processing failed")
+    } catch (err: unknown) {
+      if (cancellingRef.current) {
+        useOcrStore.getState().setStep("idle")
+        return
+      }
+      useOcrStore.getState().setError(getErrorMessage(err) || "OCR processing failed")
     }
   }, [])
 
-  // Cancel OCR
+  // Cancel OCR. The engine's cancel is global (single in-flight job) and the
+  // job id isn't known until `start` resolves, so gate on the active step, not
+  // on jobId — otherwise cancel could never fire during a running job.
   const cancelOcr = useCallback(async () => {
-    const { jobId } = useOcrStore.getState()
-    if (!jobId) return
+    const { step, jobId } = useOcrStore.getState()
+    const active = step !== "idle" && step !== "complete" && step !== "error"
+    if (!active) return
 
-    const api = (window as any).electronAPI?.pdf?.ocr
+    cancellingRef.current = true
+    const api = getElectronAPI()?.pdf.ocr
     if (api) {
-      await api.cancel(jobId)
+      await api.cancel(jobId ?? "")
     }
     useOcrStore.getState().setStep("idle")
   }, [])
@@ -104,17 +131,16 @@ export function useOcrPipeline() {
     const { uploadedFile, pageResults, editedBlocks } = useOcrStore.getState()
     if (!uploadedFile) return
 
-    const api = (window as any).electronAPI?.pdf?.ocr
+    const api = getElectronAPI()?.pdf.ocr
     if (!api) {
-      // Mock export for development
-      alert(`Export as ${format} — requires Electron runtime`)
+      useOcrStore.getState().setError("OCR engine is not available.")
       return
     }
 
     try {
       // Convert page results to serializable format
       const ocrData = Array.from(pageResults.values())
-      const edits: Record<string, any> = {}
+      const edits: Record<string, { text: string }> = {}
       for (const [id, block] of editedBlocks) {
         edits[id] = { text: block.text }
       }
@@ -156,8 +182,8 @@ export function useOcrPipeline() {
       } else {
         useOcrStore.getState().setError(result.error || "Export failed")
       }
-    } catch (err: any) {
-      useOcrStore.getState().setError(err.message || "Export failed")
+    } catch (err: unknown) {
+      useOcrStore.getState().setError(getErrorMessage(err) || "Export failed")
     }
   }, [])
 
@@ -165,7 +191,7 @@ export function useOcrPipeline() {
 }
 
 /**
- * Mock OCR pipeline for development without Electron/PaddleOCR.
+ * Mock OCR pipeline for development without the desktop backend / PaddleOCR.
  * Generates realistic-looking OCR results with simulated delays.
  */
 async function runMockOcr() {

@@ -29,7 +29,7 @@ interface RedactStore extends RedactionState {
   setIsSearching: (loading: boolean) => void
   setStep: (step: RedactionState["step"]) => void
   setError: (error: string | null) => void
-  setResult: (url: string, fileName: string, marksApplied: number) => void
+  setResult: (url: string, fileName: string, marksApplied: number, resultB64?: string | null) => void
   reset: () => void
 }
 
@@ -57,6 +57,7 @@ const initialState: RedactionState = {
   error: null,
   resultUrl: null,
   resultFileName: null,
+  resultB64: null,
   marksApplied: 0,
 }
 
@@ -180,13 +181,21 @@ export const useRedactStore = create<RedactStore>((set, get) => ({
 
   setError: (error) => set({ error, step: "error" }),
 
-  setResult: (resultUrl, resultFileName, marksApplied) =>
-    set({
-      step: "success",
-      resultUrl,
-      resultFileName,
-      marksApplied,
-      error: null,
+  setResult: (resultUrl, resultFileName, marksApplied, resultB64 = null) =>
+    set((state) => {
+      // Revoke the previous result URL so re-applying redactions doesn't leak a
+      // Blob URL holding the full PDF bytes.
+      if (state.resultUrl && state.resultUrl !== resultUrl) {
+        URL.revokeObjectURL(state.resultUrl)
+      }
+      return {
+        step: "success",
+        resultUrl,
+        resultFileName,
+        resultB64,
+        marksApplied,
+        error: null,
+      }
     }),
 
   reset: () => {

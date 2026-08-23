@@ -1,7 +1,10 @@
 "use client"
 
 import * as React from "react"
+import { basename } from "@tauri-apps/api/path"
 import { useRedactStore } from "@/stores/use-redact-store"
+import { useRecent } from "@/stores/use-recent-store"
+import { savePdfAuto } from "@/lib/desktop"
 import { PDFViewer } from "@/features/security/redact/components/pdf-viewer"
 import { Toolbar } from "@/features/security/redact/components/toolbar"
 import { DocumentPanel } from "@/features/security/redact/components/document-panel"
@@ -43,9 +46,29 @@ export default function RedactPage() {
   const reset = useRedactStore((s) => s.reset)
   const resultUrl = useRedactStore((s) => s.resultUrl)
   const resultFileName = useRedactStore((s) => s.resultFileName)
+  const resultB64 = useRedactStore((s) => s.resultB64)
   const marksApplied = useRedactStore((s) => s.marksApplied)
 
+  // Free the loaded PDF (and revoke any result URL) when leaving the tool.
+  React.useEffect(() => {
+    return () => useRedactStore.getState().reset()
+  }, [])
+
   const [showPreview, setShowPreview] = React.useState(false)
+
+  /** Save the redacted output through the desktop adapter; record path in Recent. */
+  const handleSaveRedacted = async (): Promise<string | null> => {
+    if (!resultFileName || !resultB64) return null
+    const p = await savePdfAuto(resultFileName, resultB64)
+    if (p) {
+      useRecent.getState().add({
+        toolId: "redact",
+        fileName: await basename(p),
+        path: p,
+      })
+    }
+    return p
+  }
 
   if (step === "success") {
     return (
@@ -69,6 +92,7 @@ export default function RedactPage() {
             downloadUrl={resultUrl || "#"}
             onReset={reset}
             marksApplied={marksApplied}
+            onSave={handleSaveRedacted}
           />
         </div>
       </div>

@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback } from "react"
+import { useCallback, useEffect } from "react"
 import { motion, AnimatePresence } from "motion/react"
 import { cn } from "@/lib/utils"
 import { useOcrStore } from "@/stores/use-ocr-store"
@@ -19,6 +19,11 @@ const isProcessing = (step: string) =>
 export default function OcrPage() {
   const { step, reset } = useOcrStore()
   const { startOcr, cancelOcr, exportResults } = useOcrPipeline()
+
+  // Free the uploaded file, page-image maps and export URL when leaving the tool.
+  useEffect(() => {
+    return () => useOcrStore.getState().reset()
+  }, [])
 
   const handleFileSelected = useCallback(() => {
     startOcr()

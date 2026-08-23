@@ -43,6 +43,8 @@ export interface SignState {
   errorMessage: string | null
   downloadUrl: string | null
   downloadName: string | null
+  /** Base64 of the signed output — kept so Save can write through the desktop adapter. */
+  resultB64: string | null
   
   // Sign form data
   reason: string

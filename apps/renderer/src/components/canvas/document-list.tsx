@@ -166,7 +166,6 @@ function SortableFileCard({
       {/* Large page-1 preview */}
       <div className="relative flex h-32 w-24 shrink-0 items-center justify-center overflow-hidden rounded-md border border-hairline bg-surface-raised">
         {thumb ? (
-          // eslint-disable-next-line @next/next/no-img-element
           <img src={thumb} alt={`Page 1 of ${file.name}`} className="h-full w-full object-contain" />
         ) : (
           <FileText className="h-8 w-8 text-muted-foreground/60" />

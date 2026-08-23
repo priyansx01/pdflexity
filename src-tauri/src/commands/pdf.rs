@@ -17,12 +17,12 @@ use crate::result::{FileInput, OpResult, SignOptions};
 use crate::util::{cleanup, decode_b64, make_temp_dir, read_file_b64, write_file};
 
 /// Fetch the engine bridge from managed state, mapping any error to `None`.
-async fn bridge(app: &AppHandle) -> Option<std::sync::Arc<crate::go_bridge::GoBridge>> {
+pub(crate) async fn bridge(app: &AppHandle) -> Option<std::sync::Arc<crate::go_bridge::GoBridge>> {
     app.state::<BridgeHolder>().get(app.clone()).await.ok()
 }
 
 /// Append `_<suffix>.pdf` to a filename, replacing any existing `.pdf`.
-fn with_pdf_suffix(name: &str, suffix: &str) -> String {
+pub(crate) fn with_pdf_suffix(name: &str, suffix: &str) -> String {
     let lower = name.to_ascii_lowercase();
     if let Some(stem) = lower.strip_suffix(".pdf") {
         let stem = &name[..stem.len()];

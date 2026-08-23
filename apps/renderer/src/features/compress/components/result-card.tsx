@@ -1,10 +1,12 @@
 "use client";
 
 import * as React from "react";
+import { basename } from "@tauri-apps/api/path";
 import { motion } from "motion/react";
 import { CheckCircle2, Download, FolderOpen, RotateCcw } from "lucide-react";
 
-import { savePdfAs, revealInFolder } from "@/lib/desktop";
+import { savePdfAs, savePdfAuto, revealInFolder } from "@/lib/desktop";
+import { useRecent } from "@/stores/use-recent-store";
 import type { CompressResult } from "../types";
 import { fmtBytes } from "../constants";
 
@@ -19,13 +21,34 @@ export function CompressResultCard({
   const [savedPath, setSavedPath] = React.useState<string | null>(null);
   const [saving, setSaving] = React.useState(false);
 
+  // Recent entries carry the real saved path (only after something is on disk).
+  const recordSaved = async (p: string) => {
+    setSavedPath(p);
+    useRecent.getState().add({
+      toolId: "compress",
+      fileName: await basename(p),
+      path: p,
+    });
+  };
+
+  /** One-click save: straight to the configured folder (or dialog fallback). */
   const handleSave = async () => {
     setSaving(true);
     try {
-      const p = await savePdfAs(fileName, pdf);
-      if (p) setSavedPath(p);
+      const p = await savePdfAuto(fileName, pdf);
+      if (p) await recordSaved(p);
     } finally {
       setSaving(false);
+    }
+  };
+
+  /** Always-open dialog save for picking a different location. */
+  const handleSaveAs = async () => {
+    try {
+      const p = await savePdfAs(fileName, pdf);
+      if (p) await recordSaved(p);
+    } catch {
+      /* user cancelled */
     }
   };
 
@@ -71,6 +94,16 @@ export function CompressResultCard({
         processed on-device
       </p>
 
+      {/* Saved location feedback */}
+      {savedPath && (
+        <div className="mt-3 flex items-center gap-2 rounded-lg border border-hairline bg-surface-raised/40 px-3 py-2 text-[12px] text-muted-foreground">
+          <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald" />
+          <span className="min-w-0 flex-1 truncate" title={savedPath}>
+            {savedPath}
+          </span>
+        </div>
+      )}
+
       {/* Actions */}
       <div className="mt-5 flex flex-wrap gap-2">
         <button
@@ -79,7 +112,15 @@ export function CompressResultCard({
           disabled={saving}
           className="flex items-center gap-1.5 rounded-lg bg-emerald px-4 py-2 text-[13px] font-semibold text-emerald-foreground hover:brightness-105 disabled:opacity-50"
         >
-          <Download className="h-4 w-4" /> {saving ? "Saving…" : "Save as…"}
+          <Download className="h-4 w-4" /> {saving ? "Saving…" : "Save"}
+        </button>
+        <button
+          type="button"
+          onClick={handleSaveAs}
+          disabled={saving}
+          className="rounded-lg border border-hairline px-4 py-2 text-[13px] hover:bg-surface-raised disabled:opacity-40"
+        >
+          Save as…
         </button>
         <button
           type="button"

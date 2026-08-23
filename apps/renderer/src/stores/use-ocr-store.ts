@@ -173,7 +173,15 @@ export const useOcrStore = create<OCRStore>((set, get) => ({
 
   setExportFormat: (exportFormat) => set({ exportFormat }),
 
-  setExportUrl: (exportUrl) => set({ exportUrl }),
+  setExportUrl: (exportUrl) =>
+    set((state) => {
+      // Revoke the previous export URL so exporting repeatedly (or in multiple
+      // formats) doesn't leak a Blob URL holding the full export bytes.
+      if (state.exportUrl && state.exportUrl !== exportUrl) {
+        URL.revokeObjectURL(state.exportUrl)
+      }
+      return { exportUrl }
+    }),
 
   reset: () => {
     const state = get()

@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"sync"
@@ -20,6 +21,11 @@ var (
 	cancelMu   sync.Mutex
 	cancelFlag bool
 )
+
+// langCodeRe matches PaddleOCR-style language codes ("en", "ch", "fr",
+// "chinese_cht", …). Non-matching entries are dropped before they reach the
+// Python worker as defense-in-depth against unexpected argument values.
+var langCodeRe = regexp.MustCompile(`^[a-zA-Z]{2,}(_[a-zA-Z]{2,})?$`)
 
 // handleOCRStart orchestrates the full OCR pipeline by spawning the Python
 // ocr_worker.py script and streaming its JSON events to stdout.
@@ -47,7 +53,15 @@ func handleOCRStart(enc *json.Encoder, cmd model.Command) {
 	// Build command args
 	languages := "en"
 	if len(cmd.Languages) > 0 {
-		languages = strings.Join(cmd.Languages, ",")
+		valid := make([]string, 0, len(cmd.Languages))
+		for _, l := range cmd.Languages {
+			if langCodeRe.MatchString(l) {
+				valid = append(valid, l)
+			}
+		}
+		if len(valid) > 0 {
+			languages = strings.Join(valid, ",")
+		}
 	}
 	dpi := cmd.DPI
 	if dpi == 0 {
@@ -91,7 +105,8 @@ func handleOCRStart(enc *json.Encoder, cmd model.Command) {
 		cancelled := cancelFlag
 		cancelMu.Unlock()
 		if cancelled {
-			proc.Process.Kill()
+			_ = proc.Process.Kill()
+			_ = proc.Wait() // reap the killed worker
 			_ = enc.Encode(model.OCRStreamEvent{
 				Type:  "error",
 				Error: "OCR cancelled by user",
@@ -132,12 +147,15 @@ func handleOCRStart(enc *json.Encoder, cmd model.Command) {
 	}
 }
 
-// handleOCRCancel sets the cancel flag for the current OCR job
-func handleOCRCancel(enc *json.Encoder, cmd model.Command) {
+// handleOCRCancel sets the cancel flag for the current OCR job. It deliberately
+// writes nothing to stdout: the running `handleOCRStart` loop observes the flag,
+// kills the worker, and emits the terminal "error" stream event that resolves
+// the in-flight streaming op on the Rust side. Emitting a Response here would be
+// misread by the bridge's reader loop as the OCR op's own response.
+func handleOCRCancel(_ *json.Encoder, _ model.Command) {
 	cancelMu.Lock()
 	cancelFlag = true
 	cancelMu.Unlock()
-	_ = enc.Encode(model.Response{Success: true})
 }
 
 // handleOCRRenderPage renders a single PDF page as an image via Python

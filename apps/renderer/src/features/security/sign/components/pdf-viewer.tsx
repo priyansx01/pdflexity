@@ -4,27 +4,14 @@ import * as React from "react"
 import { useSignStore } from "@/stores/use-sign-store"
 import { Loader2 } from "lucide-react"
 
-let pdfjsLib: any = null
-let pdfjsLibPromise: Promise<any> | null = null
-
-async function getPdfjsLib() {
-  if (pdfjsLib) return pdfjsLib
-  if (pdfjsLibPromise) return pdfjsLibPromise
-  pdfjsLibPromise = import("pdfjs-dist/legacy/build/pdf.mjs").then(lib => {
-    const origin = typeof window !== "undefined" ? window.location.origin : ""
-    lib.GlobalWorkerOptions.workerSrc = `${origin}/pdf.worker.min.mjs`
-    pdfjsLib = lib
-    return lib
-  })
-  return pdfjsLibPromise
-}
+import { getPdfjs, type PdfDocument, type PdfRenderTask } from "@/lib/pdf"
 
 export function PDFViewer() {
   const store = useSignStore()
   const canvasRef = React.useRef<HTMLCanvasElement>(null)
   const containerRef = React.useRef<HTMLDivElement>(null)
   const [loading, setLoading] = React.useState(false)
-  const [pdfDoc, setPdfDoc] = React.useState<any>(null)
+  const [pdfDoc, setPdfDoc] = React.useState<PdfDocument | null>(null)
   const [pageDims, setPageDims] = React.useState<{ width: number; height: number } | null>(null)
   const [containerWidth, setContainerWidth] = React.useState(0)
 
@@ -32,13 +19,15 @@ export function PDFViewer() {
     if (!store.pdfBytes) return
 
     let active = true
+    let loaded: PdfDocument | null = null
 
     const loadPdf = async () => {
       setLoading(true)
       try {
-        const lib = await getPdfjsLib()
+        const lib = await getPdfjs()
         const data = new Uint8Array(store.pdfBytes!.slice(0))
         const doc = await lib.getDocument({ data }).promise
+        loaded = doc
 
         if (!active) return
 
@@ -62,7 +51,12 @@ export function PDFViewer() {
 
     loadPdf()
 
-    return () => { active = false }
+    // Destroy the document created in this run when the bytes change or the
+    // component unmounts, releasing the worker transport + cached page data.
+    return () => {
+      active = false
+      loaded?.destroy().catch(() => {})
+    }
   }, [store.pdfBytes])
 
   React.useEffect(() => {
@@ -82,6 +76,7 @@ export function PDFViewer() {
     if (!pdfDoc || !canvasRef.current || !pageDims || containerWidth <= 0) return
 
     let active = true
+    let task: PdfRenderTask | null = null
 
     const renderPage = async () => {
       try {
@@ -103,19 +98,24 @@ export function PDFViewer() {
         const context = canvas.getContext("2d")
         if (!context) return
 
-        await page.render({
+        task = page.render({
           canvasContext: context,
           viewport,
           transform: [dpr, 0, 0, dpr, 0, 0],
-        }).promise
+        })
+        await task.promise
       } catch (err) {
+        if ((err as { name?: string })?.name === "RenderingCancelledException") return
         console.error("Failed to render page:", err)
       }
     }
 
     renderPage()
 
-    return () => { active = false }
+    return () => {
+      active = false
+      task?.cancel()
+    }
   }, [pdfDoc, store.currentPage, pageDims, containerWidth])
 
   if (!store.pdfBytes) {
