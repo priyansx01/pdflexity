@@ -104,6 +104,26 @@ impl GoBridge {
             .map_err(|_| anyhow!("OCR stream channel closed"))
     }
 
+    /// Write a control command (e.g. `ocr-cancel`) directly to the engine
+    /// WITHOUT occupying the single in-flight slot and without awaiting a
+    /// response. Its effect is observed through the active streaming op's
+    /// terminal event, so a normal `send`/`dispatch` (which bails while a slot
+    /// is pending) cannot be used to interrupt a running job.
+    pub async fn send_control(&self, cmd: Command) -> Result<()> {
+        let mut inner = self.inner.lock().await;
+        if !inner.is_alive() {
+            anyhow::bail!("PDF engine process is not running");
+        }
+        let mut line = serde_json::to_vec(&cmd).context("serialize command")?;
+        line.push(b'\n');
+        inner
+            .stdin
+            .write_all(&line)
+            .await
+            .context("write to engine stdin")?;
+        Ok(())
+    }
+
     /// Install a resolver for an in-flight op and write the command line.
     async fn dispatch(&self, cmd: Command) -> Result<oneshot::Receiver<Response>> {
         let (tx, rx) = oneshot::channel::<Response>();
