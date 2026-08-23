@@ -1,6 +1,6 @@
 import {
   Merge, Scissors, FileOutput, ArrowDownUp, RotateCw, PenTool, LockOpen, Shield,
-  FileStack, EyeOff, Minimize2, Wrench, ScanSearch, Repeat,
+  FileStack, EyeOff, Minimize2, Wrench, ScanSearch,
   type LucideIcon,
 } from "lucide-react";
 
@@ -36,7 +36,7 @@ export type Tool = {
   runningVerb: string;
   options: ToolOption[];
   multiFile?: boolean;
-  /** Not yet wired to the engine (compress/repair have no Go op). */
+  /** Set to false to show a "coming soon" screen instead of the tool flow. */
   available?: boolean;
   /** Rendered via a bespoke canvas (step 15), not the data-driven flow. */
   complex?: boolean;
@@ -220,13 +220,6 @@ export const TOOLS: Tool[] = [
     options: [], complex: true,
     run: async () => { throw new Error("OCR uses a custom canvas"); },
   },
-  {
-    id: "convert", name: "Convert PDF", group: "Optimize", icon: Repeat,
-    subtitle: "Export to other formats", engine: "pdfcpu", capability: "Multi-format",
-    href: "/optimize/convert", accepts: "PDF only", cta: "Convert", runningVerb: "Converting",
-    options: [], available: false,
-    run: async () => { throw new Error("Convert isn't wired to the engine yet"); },
-  },
 ];
 
 export const TOOL_GROUPS: ToolGroup[] = ["Organize", "Security", "Optimize"];
@@ -243,6 +236,3 @@ export function getToolByPath(pathname: string | null): Tool | null {
     [...TOOLS].sort((a, b) => b.href.length - a.href.length).find((t) => pathname.startsWith(t.href)) ?? null
   );
 }
-
-/** Tools driven by the data-driven WorkCanvas flow (Document→Options→Run→Result). */
-export const isSimpleTool = (t: Tool) => !t.complex;
