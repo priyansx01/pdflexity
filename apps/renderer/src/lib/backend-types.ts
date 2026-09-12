@@ -271,6 +271,8 @@ export interface PdfAPI {
 
 export interface FeatureStatus {
   installed: boolean;
+  /** false when the current OS/arch has no published pack. */
+  available?: boolean;
   version?: string | null;
   expectedVersion: string;
 }

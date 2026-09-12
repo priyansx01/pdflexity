@@ -2,9 +2,19 @@
 
 import * as React from "react";
 import { useTheme } from "next-themes";
-import { FolderOpen, RotateCcw, ShieldCheck } from "lucide-react";
+import {
+  FolderOpen,
+  RotateCcw,
+  ShieldCheck,
+  ScanSearch,
+  Download,
+  Loader2,
+  Trash2,
+  CheckCircle2,
+} from "lucide-react";
 import { pickDirectory } from "@/lib/desktop";
 import { useSettings } from "@/lib/settings";
+import { useFeatureInstall } from "@/features/optimize/ocr/hooks/use-feature-install";
 import { cn } from "@/lib/utils";
 
 /**
@@ -112,6 +122,10 @@ export function SettingsDialog({
             </p>
           </div>
 
+          {/* ── Features ── */}
+          <p className="label-caps px-2 pb-1.5 pt-4">Features</p>
+          <FeaturesSection />
+
           {/* ── About ── */}
           <p className="label-caps px-2 pb-1.5 pt-4">About</p>
           <div className="space-y-1 rounded-lg px-2 py-2.5 text-[12px] text-muted-foreground">
@@ -136,6 +150,93 @@ export function SettingsDialog({
       /* user cancelled or picker failed — keep current setting */
     }
   }
+}
+
+/** Manage optional feature packs (currently OCR) — install / uninstall. */
+function FeaturesSection() {
+  const ocr = useFeatureInstall("ocr");
+
+  return (
+    <div className="rounded-lg px-2 py-2.5">
+      <div className="flex items-start gap-3">
+        <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald/10">
+          <ScanSearch className="h-4 w-4 text-emerald" />
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <p className="text-[13px] font-medium">OCR</p>
+            {ocr.installed && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald">
+                <CheckCircle2 className="h-3 w-3" /> Installed
+              </span>
+            )}
+          </div>
+          <p className="mt-0.5 text-[11px] text-muted-foreground">
+            Local text recognition (PaddleOCR). One-time ~1–2 GB download.
+            {ocr.version ? ` · ${ocr.version}` : ""}
+          </p>
+
+          {ocr.installing && (
+            <div className="mt-2">
+              <div className="mb-1 flex items-center justify-between text-[11px] text-muted-foreground">
+                <span>{ocr.phase === "download" ? "Downloading" : "Installing"}…</span>
+                <span className="tabular-nums">{ocr.pct}%</span>
+              </div>
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/5">
+                <div
+                  className="h-full rounded-full bg-emerald transition-[width] duration-200"
+                  style={{ width: `${ocr.pct}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+          {ocr.error && !ocr.installing && (
+            <p className="mt-1.5 text-[11px] text-red-400">{ocr.error}</p>
+          )}
+
+          {!ocr.available && !ocr.installed && (
+            <p className="mt-1.5 text-[11px] text-muted-foreground/70">
+              Not available for this platform yet.
+            </p>
+          )}
+        </div>
+
+        <div className="shrink-0">
+          {ocr.installed ? (
+            <button
+              type="button"
+              onClick={ocr.uninstall}
+              disabled={ocr.uninstalling}
+              className="flex items-center gap-1.5 rounded-md border border-hairline px-2.5 py-1.5 text-[12px] text-muted-foreground hover:bg-surface-raised hover:text-foreground disabled:opacity-50"
+            >
+              {ocr.uninstalling ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Trash2 className="h-3.5 w-3.5" />
+              )}
+              Remove
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={ocr.install}
+              disabled={ocr.installing || !ocr.available || ocr.installed === null}
+              className="flex items-center gap-1.5 rounded-md bg-emerald px-2.5 py-1.5 text-[12px] font-medium text-emerald-foreground transition hover:brightness-105 disabled:opacity-50"
+            >
+              {ocr.installing ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Download className="h-3.5 w-3.5" />
+              )}
+              Install
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function SegmentedTheme({ isDark, onSet }: { isDark: boolean; onSet: (dark: boolean) => void }) {

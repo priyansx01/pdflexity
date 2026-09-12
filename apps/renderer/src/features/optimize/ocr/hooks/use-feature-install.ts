@@ -13,7 +13,10 @@ type Phase = FeatureInstallProgress["phase"];
  */
 export function useFeatureInstall(id: string) {
   const [installed, setInstalled] = useState<boolean | null>(null); // null = checking
+  const [available, setAvailable] = useState(true);
+  const [version, setVersion] = useState<string | null>(null);
   const [installing, setInstalling] = useState(false);
+  const [uninstalling, setUninstalling] = useState(false);
   const [phase, setPhase] = useState<Phase>("download");
   const [pct, setPct] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -28,6 +31,8 @@ export function useFeatureInstall(id: string) {
     try {
       const s = await api.status(id);
       setInstalled(s.installed);
+      setAvailable(s.available ?? true);
+      setVersion(s.version ?? null);
     } catch {
       setInstalled(false);
     }
@@ -83,5 +88,33 @@ export function useFeatureInstall(id: string) {
     }
   }, [id]);
 
-  return { installed, installing, phase, pct, error, install, refresh };
+  const uninstall = useCallback(async () => {
+    const api = getElectronAPI()?.feature;
+    if (!api) return;
+    setUninstalling(true);
+    setError(null);
+    try {
+      const res = await api.uninstall(id);
+      if (res.success) setInstalled(false);
+      else setError(res.error || "Uninstall failed");
+    } catch (e) {
+      setError(getErrorMessage(e) || "Uninstall failed");
+    } finally {
+      setUninstalling(false);
+    }
+  }, [id]);
+
+  return {
+    installed,
+    available,
+    version,
+    installing,
+    uninstalling,
+    phase,
+    pct,
+    error,
+    install,
+    uninstall,
+    refresh,
+  };
 }
