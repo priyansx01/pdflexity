@@ -98,6 +98,10 @@ pub fn run() {
             commands::app::app_get_version,
             commands::app::open_external,
             commands::app::quit_app,
+            // Feature packs (on-demand OCR install)
+            commands::features::feature_status,
+            commands::features::feature_install,
+            commands::features::feature_uninstall,
             // PDF
             commands::pdf::pdf_unlock,
             commands::pdf::pdf_protect,

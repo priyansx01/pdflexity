@@ -48,6 +48,12 @@ flate2 = "1"
 # Open URLs in the user's default browser (replaces Electron shell.openExternal)
 open = "5"
 
+# On-demand feature packs: download (reqwest), verify (sha2), extract (zip)
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "stream"] }
+futures-util = "0.3"
+sha2 = "0.10"
+zip = { version = "2", default-features = false, features = ["deflate"] }
+
 # Misc
 log = "0.4"
 

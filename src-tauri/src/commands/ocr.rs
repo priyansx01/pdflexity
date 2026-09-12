@@ -8,6 +8,7 @@ use serde_json::Value;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Manager};
 
+use crate::commands::features::ocr_worker_path;
 use crate::go_bridge::BridgeHolder;
 use crate::go_model::Command;
 use crate::result::OpResult;
@@ -15,6 +16,11 @@ use crate::util::{cleanup, decode_b64, make_temp_dir, read_file_b64, write_file}
 
 async fn bridge(app: &AppHandle) -> Option<std::sync::Arc<crate::go_bridge::GoBridge>> {
     app.state::<BridgeHolder>().get(app.clone()).await.ok()
+}
+
+/// The installed OCR worker path, if any, as a string for the engine command.
+fn worker(app: &AppHandle) -> Option<String> {
+    ocr_worker_path(app).map(|p| p.to_string_lossy().into_owned())
 }
 
 fn generate_job_id() -> String {
@@ -51,6 +57,7 @@ pub async fn pdf_ocr_start(
                 Command {
                     languages: Some(languages),
                     dpi: Some(dpi),
+                    worker_path: worker(&app),
                     ..Command::new("ocr-start")
                         .input_path_opt(input.clone())
                         .output_path_opt(output_dir.clone())
@@ -101,6 +108,7 @@ pub async fn pdf_ocr_render_page(buffer_b64: String, page: i64, scale: f64, app:
             .send(Command {
                 page: Some(page),
                 scale: Some(scale),
+                worker_path: worker(&app),
                 ..Command::new("ocr-render-page").input_path_opt(input.clone())
             })
             .await?;
@@ -148,6 +156,7 @@ pub async fn pdf_ocr_export(
                 export_format: Some(format),
                 ocr_data: Some(serde_json::to_string(&ocr_data)?),
                 edits: Some(serde_json::to_string(&edits)?),
+                worker_path: worker(&app),
                 ..Command::new("ocr-export").input_path_opt(input.clone()).output_path_opt(output.clone())
             })
             .await?;
