@@ -267,11 +267,33 @@ export interface PdfAPI {
   };
 }
 
+// ─── Feature packs (on-demand OCR install) ────────────────────────────────────
+
+export interface FeatureStatus {
+  installed: boolean;
+  version?: string | null;
+  expectedVersion: string;
+}
+
+export interface FeatureInstallProgress {
+  id: string;
+  phase: "download" | "extract";
+  pct: number;
+}
+
+export interface FeatureAPI {
+  status: (id: string) => Promise<FeatureStatus>;
+  install: (id: string) => Promise<{ success: boolean; error?: string }>;
+  uninstall: (id: string) => Promise<{ success: boolean; error?: string }>;
+  onInstallProgress: (cb: (data: FeatureInstallProgress) => void) => Promise<() => void>;
+}
+
 export interface ElectronAPI {
   getPlatform: () => Promise<string>;
   getVersion: () => Promise<string>;
   openExternal: (url: string) => Promise<void>;
   pdf: PdfAPI;
+  feature: FeatureAPI;
 }
 
 declare global {

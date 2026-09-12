@@ -218,11 +218,29 @@ export function createElectronAPI() {
     })(),
   };
 
+  const feature = {
+    status: (id: string) =>
+      invoke<{ installed: boolean; version?: string | null; expectedVersion: string }>(
+        "feature_status",
+        { id },
+      ),
+    install: (id: string) => call("feature_install", { id }),
+    uninstall: (id: string) => call("feature_uninstall", { id }),
+    onInstallProgress: (
+      callback: (data: { id: string; phase: "download" | "extract"; pct: number }) => void,
+    ): Promise<UnlistenFn> =>
+      listen<{ id: string; phase: "download" | "extract"; pct: number }>(
+        "feature:install-progress",
+        (e) => callback(e.payload),
+      ),
+  };
+
   return {
     getPlatform: () => invoke<string>("app_get_platform"),
     getVersion: () => invoke<string>("app_get_version"),
     openExternal: (url: string) => invoke<void>("open_external", { url }),
     pdf,
+    feature,
   };
 }
 

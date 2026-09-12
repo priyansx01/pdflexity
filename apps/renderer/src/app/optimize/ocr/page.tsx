@@ -6,6 +6,8 @@ import { cn } from "@/lib/utils"
 import { useOcrStore } from "@/stores/use-ocr-store"
 import { useOcrPipeline } from "@/features/optimize/ocr/hooks/use-ocr-pipeline"
 import { UploadZone } from "@/features/optimize/ocr/components/upload-zone"
+import { InstallGate } from "@/features/optimize/ocr/components/install-gate"
+import { useFeatureInstall } from "@/features/optimize/ocr/hooks/use-feature-install"
 import { ProcessingOverlay } from "@/features/optimize/ocr/components/processing-overlay"
 import { WorkspaceHeader } from "@/features/optimize/ocr/components/workspace-header"
 import { PreviewPanel } from "@/features/optimize/ocr/components/original-preview/preview-panel"
@@ -19,6 +21,7 @@ const isProcessing = (step: string) =>
 export default function OcrPage() {
   const { step, reset } = useOcrStore()
   const { startOcr, cancelOcr, exportResults } = useOcrPipeline()
+  const ocrFeature = useFeatureInstall("ocr")
 
   // Free the uploaded file, page-image maps and export URL when leaving the tool.
   useEffect(() => {
@@ -54,7 +57,17 @@ export default function OcrPage() {
             transition={{ duration: 0.3 }}
             className="flex-1"
           >
-            <UploadZone onFileSelected={handleFileSelected} />
+            {ocrFeature.installed === false ? (
+              <InstallGate
+                installing={ocrFeature.installing}
+                phase={ocrFeature.phase}
+                pct={ocrFeature.pct}
+                error={ocrFeature.error}
+                onInstall={ocrFeature.install}
+              />
+            ) : (
+              <UploadZone onFileSelected={handleFileSelected} />
+            )}
           </motion.div>
         )}
 
