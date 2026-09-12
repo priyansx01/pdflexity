@@ -74,6 +74,10 @@ pub struct Command {
     pub ocr_data: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub edits: Option<String>,
+    /// Path to the installed self-contained OCR worker executable; when set the
+    /// engine runs it directly instead of `python ocr_worker.py`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub worker_path: Option<String>,
 }
 
 impl Command {
@@ -106,6 +110,7 @@ impl Command {
             export_format: None,
             ocr_data: None,
             edits: None,
+            worker_path: None,
         }
     }
 

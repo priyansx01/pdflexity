@@ -37,19 +37,6 @@ func handleOCRStart(enc *json.Encoder, cmd model.Command) {
 	cancelFlag = false
 	cancelMu.Unlock()
 
-	// Resolve Python + script paths
-	pythonPath := findPython()
-	scriptPath := findOCRScript()
-
-	if pythonPath == "" {
-		writeStreamError(enc, "Python not found. Install Python 3.8+ and PaddleOCR.")
-		return
-	}
-	if scriptPath == "" {
-		writeStreamError(enc, "OCR worker script not found.")
-		return
-	}
-
 	// Build command args
 	languages := "en"
 	if len(cmd.Languages) > 0 {
@@ -68,8 +55,7 @@ func handleOCRStart(enc *json.Encoder, cmd model.Command) {
 		dpi = 300
 	}
 
-	args := []string{
-		scriptPath,
+	workerArgs := []string{
 		"--input", cmd.InputPath,
 		"--output-dir", cmd.OutputPath,
 		"--languages", languages,
@@ -77,11 +63,13 @@ func handleOCRStart(enc *json.Encoder, cmd model.Command) {
 		"--mode", "full",
 	}
 
-	log.Printf("OCR: running %s %v", pythonPath, args)
-
-	// Spawn Python process
-	proc := exec.Command(pythonPath, args...)
+	proc, err := ocrCommand(cmd, workerArgs)
+	if err != nil {
+		writeStreamError(enc, err.Error())
+		return
+	}
 	proc.Stderr = os.Stderr
+	log.Printf("OCR: running %s %v", proc.Path, proc.Args)
 
 	stdout, err := proc.StdoutPipe()
 	if err != nil {
@@ -158,30 +146,26 @@ func handleOCRCancel(_ *json.Encoder, _ model.Command) {
 	cancelMu.Unlock()
 }
 
-// handleOCRRenderPage renders a single PDF page as an image via Python
+// handleOCRRenderPage renders a single PDF page as an image via the OCR worker
 func handleOCRRenderPage(enc *json.Encoder, cmd model.Command) {
-	pythonPath := findPython()
-	scriptPath := findOCRScript()
-
-	if pythonPath == "" || scriptPath == "" {
-		writeError(enc, "Python or OCR script not found")
-		return
-	}
-
 	scale := cmd.Scale
 	if scale == 0 {
 		scale = 1.5
 	}
 
-	args := []string{
-		scriptPath,
+	workerArgs := []string{
 		"--input", cmd.InputPath,
 		"--mode", "render-page",
 		"--page", fmt.Sprintf("%d", cmd.Page),
 		"--dpi", fmt.Sprintf("%d", int(72*scale)),
 	}
 
-	out, err := exec.Command(pythonPath, args...).Output()
+	proc, err := ocrCommand(cmd, workerArgs)
+	if err != nil {
+		writeError(enc, err.Error())
+		return
+	}
+	out, err := proc.Output()
 	if err != nil {
 		writeError(enc, fmt.Sprintf("Failed to render page: %v", err))
 		return
@@ -197,18 +181,9 @@ func handleOCRRenderPage(enc *json.Encoder, cmd model.Command) {
 	_ = enc.Encode(model.Response{Success: true, Data: result})
 }
 
-// handleOCRExport exports OCR results to various formats via Python
+// handleOCRExport exports OCR results to various formats via the OCR worker
 func handleOCRExport(enc *json.Encoder, cmd model.Command) {
-	pythonPath := findPython()
-	scriptPath := findOCRScript()
-
-	if pythonPath == "" || scriptPath == "" {
-		writeError(enc, "Python or OCR script not found")
-		return
-	}
-
-	args := []string{
-		scriptPath,
+	workerArgs := []string{
 		"--input", cmd.InputPath,
 		"--output-dir", filepath.Dir(cmd.OutputPath),
 		"--mode", "export",
@@ -217,7 +192,11 @@ func handleOCRExport(enc *json.Encoder, cmd model.Command) {
 	}
 
 	// Pass OCR data via stdin
-	proc := exec.Command(pythonPath, args...)
+	proc, err := ocrCommand(cmd, workerArgs)
+	if err != nil {
+		writeError(enc, err.Error())
+		return
+	}
 	proc.Stderr = os.Stderr
 
 	stdin, err := proc.StdinPipe()
@@ -257,6 +236,28 @@ func writeStreamError(enc *json.Encoder, msg string) {
 		Type:  "error",
 		Error: msg,
 	})
+}
+
+// ocrCommand builds the OCR worker command. When cmd.WorkerPath is set (the
+// installed self-contained feature pack) it runs that executable directly;
+// otherwise it falls back to the dev path of `python ocr_worker.py`. workerArgs
+// must NOT include the script path.
+func ocrCommand(cmd model.Command, workerArgs []string) (*exec.Cmd, error) {
+	if cmd.WorkerPath != "" {
+		if _, err := os.Stat(cmd.WorkerPath); err != nil {
+			return nil, fmt.Errorf("OCR worker not found at %s", cmd.WorkerPath)
+		}
+		return exec.Command(cmd.WorkerPath, workerArgs...), nil
+	}
+	pythonPath := findPython()
+	scriptPath := findOCRScript()
+	if pythonPath == "" {
+		return nil, fmt.Errorf("OCR isn't installed — install the OCR feature, or add Python 3.11/3.12 with PaddleOCR")
+	}
+	if scriptPath == "" {
+		return nil, fmt.Errorf("OCR worker script not found")
+	}
+	return exec.Command(pythonPath, append([]string{scriptPath}, workerArgs...)...), nil
 }
 
 // findPython locates a Python 3 interpreter

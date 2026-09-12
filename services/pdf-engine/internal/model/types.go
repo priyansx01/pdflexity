@@ -107,6 +107,11 @@ type Command struct {
 	ExportFormat string   `json:"exportFormat,omitempty"`
 	OCRData      string   `json:"ocrData,omitempty"`
 	Edits        string   `json:"edits,omitempty"`
+
+	// Path to a bundled, self-contained OCR worker executable (the installed
+	// feature pack). When set, the engine runs it directly instead of
+	// `python ocr_worker.py`.
+	WorkerPath string `json:"workerPath,omitempty"`
 }
 
 // Response is the JSON-RPC result written to stdout.
