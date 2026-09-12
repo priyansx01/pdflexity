@@ -13,7 +13,7 @@ import {
   SortableContext,
   arrayMove,
   useSortable,
-  verticalListSortingStrategy,
+  rectSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { FileText, GripVertical, Lock, Plus, X } from "lucide-react";
@@ -67,9 +67,9 @@ export function DocumentList({
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext
           items={files.map((_, i) => `file-${i}`)}
-          strategy={verticalListSortingStrategy}
+          strategy={rectSortingStrategy}
         >
-          <ul className="space-y-2">
+          <ul className="flex flex-wrap gap-3">
             {files.map((f, i) => (
               <SortableFileCard
                 key={key(f) + i}
@@ -136,7 +136,7 @@ function SortableFileCard({
         setMeta(m);
       });
     }
-    renderThumbnail(file.buffer, 224).then((t) => !cancelled && setThumb(t));
+    renderThumbnail(file.buffer, 320).then((t) => !cancelled && setThumb(t));
     return () => {
       cancelled = true;
     };
@@ -148,27 +148,38 @@ function SortableFileCard({
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
       className={cn(
-        "flex items-center gap-4 rounded-lg border border-hairline bg-surface px-4 py-3.5",
+        "group relative flex w-44 cursor-grab touch-none flex-col gap-2 rounded-lg border border-hairline bg-surface p-3 active:cursor-grabbing",
         isDragging && "z-10 opacity-80 ring-1 ring-emerald/40"
       )}
+      {...attributes}
+      {...listeners}
     >
-      {/* Drag handle */}
+      {/* Header: index + drag affordance */}
+      <div className="flex items-center gap-1.5 text-muted-foreground/50">
+        <GripVertical className="h-4 w-4 shrink-0" />
+        <span className="tnum text-[11px]">{index + 1}.</span>
+      </div>
+
+      {/* Remove */}
       <button
         type="button"
-        aria-label={`Reorder ${file.name}`}
-        className="-ml-1.5 flex h-28 w-5 shrink-0 cursor-grab touch-none items-center justify-center text-muted-foreground/50 hover:text-foreground active:cursor-grabbing"
-        {...attributes}
-        {...listeners}
+        aria-label={`Remove ${file.name}`}
+        onClick={(e) => {
+          e.stopPropagation();
+          onRemove();
+        }}
+        onPointerDown={(e) => e.stopPropagation()}
+        className="absolute right-1.5 top-1.5 z-10 flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity hover:bg-surface-raised hover:text-foreground group-hover:opacity-100"
       >
-        <GripVertical className="h-4 w-4" />
+        <X className="h-4 w-4" />
       </button>
 
       {/* Large page-1 preview */}
-      <div className="relative flex h-32 w-24 shrink-0 items-center justify-center overflow-hidden rounded-md border border-hairline bg-surface-raised">
+      <div className="relative flex aspect-[3/4] w-full items-center justify-center overflow-hidden rounded-md border border-hairline bg-surface-raised">
         {thumb ? (
           <img src={thumb} alt={`Page 1 of ${file.name}`} className="h-full w-full object-contain" />
         ) : (
-          <FileText className="h-8 w-8 text-muted-foreground/60" />
+          <FileText className="h-10 w-10 text-muted-foreground/60" />
         )}
         <span className="absolute bottom-1 right-1 rounded bg-background/80 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground backdrop-blur-sm">
           1{meta?.pages && meta.pages > 1 ? `/${meta.pages}` : ""}
@@ -176,11 +187,8 @@ function SortableFileCard({
       </div>
 
       {/* Meta */}
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <span className="tnum text-[11px] text-muted-foreground">{index + 1}.</span>
-          <p className="truncate text-[14px] font-semibold">{file.name}</p>
-        </div>
+      <div className="min-w-0">
+        <p className="truncate text-[13px] font-semibold" title={file.name}>{file.name}</p>
         <p className="mt-1 text-[12px] text-muted-foreground">
           {meta?.pages ? `${meta.pages} ${meta.pages === 1 ? "page" : "pages"} · ` : ""}
           {fmtSize(file.buffer.byteLength)}
@@ -191,16 +199,6 @@ function SortableFileCard({
           </span>
         )}
       </div>
-
-      {/* Remove */}
-      <button
-        type="button"
-        onClick={onRemove}
-        aria-label={`Remove ${file.name}`}
-        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-surface-raised hover:text-foreground"
-      >
-        <X className="h-4 w-4" />
-      </button>
     </li>
   );
 }
