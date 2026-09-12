@@ -27,3 +27,10 @@ pub fn open_external(url: String) -> Result<(), String> {
     }
     open::that(url).map_err(|e| e.to_string())
 }
+
+/// Fully exit the app. Closing the window only hides it to the tray, so this is
+/// how the renderer actually quits (after its save/confirm flow).
+#[tauri::command(rename_all = "camelCase")]
+pub fn quit_app(app: tauri::AppHandle) {
+    app.exit(0);
+}
