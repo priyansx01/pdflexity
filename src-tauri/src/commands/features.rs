@@ -17,14 +17,40 @@ use tokio::io::AsyncWriteExt;
 
 use crate::result::OpResult;
 
-// ─── Pack descriptor (v1: Windows x64, wired to the CI-published release) ──────
+// ─── Pack descriptor (wired to the CI-published, per-platform release) ─────────
 
-const OCR_PACK_URL: &str =
-    "https://github.com/priyansx01/pdflexity/releases/download/ocr-pack-v1/pdflexity-ocr-worker-win-x64.zip";
 const OCR_PACK_VERSION: &str = "v1";
-/// Lowercase hex SHA-256 of the zip. Empty = skip verification (set once the CI
-/// publishes the asset).
-const OCR_PACK_SHA256: &str = "";
+const OCR_PACK_TAG: &str = "ocr-pack-v1";
+const OCR_PACK_RELEASE_BASE: &str =
+    "https://github.com/priyansx01/pdflexity/releases/download";
+
+/// The platform-specific pack zip filename produced by the ocr-pack CI matrix.
+/// Returns None on an unsupported platform.
+const fn ocr_pack_asset() -> Option<&'static str> {
+    if cfg!(all(target_os = "windows", target_arch = "x86_64")) {
+        Some("pdflexity-ocr-worker-win-x64.zip")
+    } else if cfg!(all(target_os = "macos", target_arch = "x86_64")) {
+        Some("pdflexity-ocr-worker-macos-x64.zip")
+    } else if cfg!(all(target_os = "linux", target_arch = "x86_64")) {
+        Some("pdflexity-ocr-worker-linux-x64.zip")
+    } else {
+        None
+    }
+}
+
+/// Lowercase hex SHA-256 of the platform pack. Empty = skip verification (fill
+/// these in from the CI-published `.sha256` files once the release exists).
+const fn ocr_pack_sha256() -> &'static str {
+    if cfg!(all(target_os = "windows", target_arch = "x86_64")) {
+        ""
+    } else if cfg!(all(target_os = "macos", target_arch = "x86_64")) {
+        ""
+    } else if cfg!(all(target_os = "linux", target_arch = "x86_64")) {
+        ""
+    } else {
+        ""
+    }
+}
 
 /// The onedir folder name PyInstaller produces (see services/ocr-engine/build.ps1).
 const OCR_WORKER_DIR: &str = "pdflexity-ocr-worker";
@@ -66,6 +92,7 @@ pub fn feature_status(id: String, app: AppHandle) -> Value {
         .map(|s| s.trim().to_string());
     json!({
         "installed": installed,
+        "available": ocr_pack_asset().is_some(),
         "version": version,
         "expectedVersion": OCR_PACK_VERSION,
     })
@@ -99,6 +126,10 @@ pub async fn feature_uninstall(id: String, app: AppHandle) -> OpResult {
 // ─── Install pipeline ───────────────────────────────────────────────────────────
 
 async fn install_ocr(app: &AppHandle) -> Result<()> {
+    let asset = ocr_pack_asset()
+        .ok_or_else(|| anyhow!("OCR isn't available for this platform yet."))?;
+    let url = format!("{OCR_PACK_RELEASE_BASE}/{OCR_PACK_TAG}/{asset}");
+
     let base = feature_dir(app, "ocr").ok_or_else(|| anyhow!("no app-data directory"))?;
     tokio::fs::create_dir_all(&base)
         .await
@@ -107,7 +138,7 @@ async fn install_ocr(app: &AppHandle) -> Result<()> {
 
     // ── Download (streamed, with progress + running hash) ───────────────────
     let resp = reqwest::Client::new()
-        .get(OCR_PACK_URL)
+        .get(&url)
         .send()
         .await
         .context("start download")?
@@ -144,10 +175,11 @@ async fn install_ocr(app: &AppHandle) -> Result<()> {
     drop(file);
 
     // ── Verify checksum (when configured) ───────────────────────────────────
-    if !OCR_PACK_SHA256.is_empty() {
+    let expected_sha = ocr_pack_sha256();
+    if !expected_sha.is_empty() {
         let digest = hasher.finalize();
         let hex: String = digest.iter().map(|b| format!("{b:02x}")).collect();
-        if !hex.eq_ignore_ascii_case(OCR_PACK_SHA256) {
+        if !hex.eq_ignore_ascii_case(expected_sha) {
             let _ = tokio::fs::remove_file(&zip_path).await;
             anyhow::bail!("Downloaded pack failed its checksum — please retry.");
         }

@@ -1,10 +1,10 @@
 name: OCR feature pack
 
 # Builds the self-contained PaddleOCR worker (PyInstaller onedir) on a Python
-# 3.12 Windows runner and publishes it as a GitHub release asset that the app
-# downloads on demand. Run via the Actions tab (workflow_dispatch) or by pushing
-# an `ocr-pack-v*` tag. After it runs, set OCR_PACK_URL / OCR_PACK_SHA256 in
-# src-tauri/src/commands/features.rs to match the published asset.
+# 3.12 runner for each OS and publishes one zip per platform as a GitHub release
+# asset that the app downloads on demand. Run via the Actions tab
+# (workflow_dispatch) or by pushing an `ocr-pack-v*` tag. After it runs, set the
+# per-platform URLs / SHA-256s in src-tauri/src/commands/features.rs.
 
 on:
   workflow_dispatch:
@@ -21,7 +21,17 @@ permissions:
 
 jobs:
   build:
-    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            asset: pdflexity-ocr-worker-win-x64.zip
+          - os: macos-13 # Intel x64 runner
+            asset: pdflexity-ocr-worker-macos-x64.zip
+          - os: ubuntu-latest
+            asset: pdflexity-ocr-worker-linux-x64.zip
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
 
@@ -35,37 +45,57 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt pyinstaller
 
-      - name: Build the worker (PyInstaller onedir)
+      - name: Build worker (Windows)
+        if: runner.os == 'Windows'
         working-directory: services/ocr-engine
         shell: pwsh
         run: ./build.ps1
 
-      - name: Package + checksum
+      - name: Build worker (Unix)
+        if: runner.os != 'Windows'
+        working-directory: services/ocr-engine
+        shell: bash
+        run: bash build.sh
+
+      - name: Package + checksum (Windows)
+        if: runner.os == 'Windows'
         shell: pwsh
         run: |
           $src = "src-tauri/resources/ocr/pdflexity-ocr-worker"
           if (-not (Test-Path $src)) { throw "worker onedir not found at $src" }
-          Compress-Archive -Path $src -DestinationPath pdflexity-ocr-worker-win-x64.zip -Force
-          $hash = (Get-FileHash -Algorithm SHA256 pdflexity-ocr-worker-win-x64.zip).Hash.ToLower()
-          "$hash  pdflexity-ocr-worker-win-x64.zip" | Out-File -Encoding ascii pdflexity-ocr-worker-win-x64.zip.sha256
+          Compress-Archive -Path $src -DestinationPath ${{ matrix.asset }} -Force
+          $hash = (Get-FileHash -Algorithm SHA256 ${{ matrix.asset }}).Hash.ToLower()
+          "$hash  ${{ matrix.asset }}" | Out-File -Encoding ascii ${{ matrix.asset }}.sha256
           Write-Host "SHA256: $hash"
+
+      - name: Package + checksum (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          src="src-tauri/resources/ocr/pdflexity-ocr-worker"
+          [ -d "$src" ] || { echo "worker onedir not found at $src"; exit 1; }
+          ( cd "$(dirname "$src")" && zip -r -q "$OLDPWD/${{ matrix.asset }}" "$(basename "$src")" )
+          if command -v sha256sum >/dev/null; then
+            sha256sum "${{ matrix.asset }}" | tee "${{ matrix.asset }}.sha256"
+          else
+            shasum -a 256 "${{ matrix.asset }}" | tee "${{ matrix.asset }}.sha256"
+          fi
 
       - name: Resolve tag
         id: tag
-        shell: pwsh
+        shell: bash
         run: |
-          if ($env:GITHUB_REF -like "refs/tags/*") {
-            $t = $env:GITHUB_REF -replace "refs/tags/", ""
-          } else {
-            $t = "${{ github.event.inputs.tag }}"
-          }
-          "tag=$t" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${{ github.event.inputs.tag }}" >> "$GITHUB_OUTPUT"
+          fi
 
-      - name: Publish release
+      - name: Publish to release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
           name: OCR feature pack ${{ steps.tag.outputs.tag }}
           files: |
-            pdflexity-ocr-worker-win-x64.zip
-            pdflexity-ocr-worker-win-x64.zip.sha256
+            ${{ matrix.asset }}
+            ${{ matrix.asset }}.sha256
