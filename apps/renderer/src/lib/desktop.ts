@@ -238,6 +238,44 @@ export const windowControls = {
   },
 };
 
+/** True when the main window is currently visible (false when hidden to tray). */
+export async function isWindowVisible(): Promise<boolean> {
+  if (typeof window === "undefined") return true;
+  try {
+    return await getCurrentWindow().isVisible();
+  } catch {
+    return true;
+  }
+}
+
+// ─── Native OS notifications ───────────────────────────────────────────────────
+
+/** Ask once for OS notification permission (no-op if already granted). */
+export async function requestNotifyPermission(): Promise<void> {
+  try {
+    const { isPermissionGranted, requestPermission } = await import(
+      "@tauri-apps/plugin-notification"
+    );
+    if (!(await isPermissionGranted())) await requestPermission();
+  } catch {
+    /* plugin unavailable — silently skip */
+  }
+}
+
+/** Send a native OS notification (requests permission if needed). Never throws. */
+export async function notify(title: string, body: string): Promise<void> {
+  try {
+    const { isPermissionGranted, requestPermission, sendNotification } = await import(
+      "@tauri-apps/plugin-notification"
+    );
+    let granted = await isPermissionGranted();
+    if (!granted) granted = (await requestPermission()) === "granted";
+    if (granted) sendNotification({ title, body });
+  } catch {
+    /* plugin unavailable — silently skip */
+  }
+}
+
 /** The OS window theme ("dark" | "light" | null when unknown). */
 export async function windowTheme(): Promise<"dark" | "light" | null> {
   if (typeof window === "undefined") return null;

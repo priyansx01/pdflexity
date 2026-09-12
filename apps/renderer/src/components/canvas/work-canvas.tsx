@@ -10,8 +10,9 @@ import type { RunOutcome } from "@/lib/tools";
 import { openPdf, onFileDrop, savePdfAs, savePdfAuto, revealInFolder, type LoadedFile } from "@/lib/desktop";
 import { getPdfMeta, renderThumbnail } from "@/lib/pdf";
 import { useCanvasState } from "@/stores/use-canvas-state";
+import { useWorkspaceStore, emptySession } from "@/stores/use-workspace-store";
 import { useRecent } from "@/stores/use-recent-store";
-import { OptionsPanel, defaultOptionValues, type OptionValues } from "@/components/canvas/options-panel";
+import { OptionsPanel, defaultOptionValues } from "@/components/canvas/options-panel";
 import { DocumentList } from "@/components/canvas/document-list";
 import { cn } from "@/lib/utils";
 
@@ -21,43 +22,36 @@ const STEP_SPRING = { type: "spring" as const, stiffness: 420, damping: 34 };
 
 export function WorkCanvas({ toolId }: { toolId: string }) {
   const tool = getTool(toolId);
-  const [files, setFiles] = React.useState<LoadedFile[]>([]);
-  const [phase, setPhase] = React.useState<Phase>("empty");
-  const [result, setResult] = React.useState<RunOutcome | null>(null);
-  const [error, setError] = React.useState<string | null>(null);
-  const [progress, setProgress] = React.useState(0);
-  const [options, setOptions] = React.useState<OptionValues>({});
-  const [durationMs, setDurationMs] = React.useState(0);
 
-  const setCanvasState = useCanvasState((s) => s.setState);
-  const resetCanvasState = useCanvasState((s) => s.reset);
+  // Per-tool session lives in a module-global store so the loaded files and a
+  // running job survive navigating to another tool (and back).
+  const session = useWorkspaceStore((x) => x.sessions[toolId]);
+  const ensureSession = useWorkspaceStore((x) => x.ensureSession);
+  const addFiles = useWorkspaceStore((x) => x.addFiles);
+  const removeFileAction = useWorkspaceStore((x) => x.removeFile);
+  const reorderFiles = useWorkspaceStore((x) => x.reorderFiles);
+  const setOptionsAction = useWorkspaceStore((x) => x.setOptions);
+  const setErrorAction = useWorkspaceStore((x) => x.setError);
+  const runAction = useWorkspaceStore((x) => x.run);
+  const resetAction = useWorkspaceStore((x) => x.reset);
 
-  // Reset everything when the tool changes.
+  // Fallback for the first render, before the ensureSession effect below runs.
+  const s = session ?? emptySession(defaultOptionValues(tool?.options ?? []));
+  const { files, phase, result, error, progress, options, durationMs } = s;
+
+  const setCanvasState = useCanvasState((x) => x.setState);
+
   React.useEffect(() => {
-    setFiles([]);
-    setResult(null);
-    setError(null);
-    setProgress(0);
-    setPhase("empty");
-    setOptions(defaultOptionValues(getTool(toolId)?.options ?? []));
-    resetCanvasState();
-  }, [toolId, resetCanvasState]);
+    ensureSession(toolId);
+  }, [toolId, ensureSession]);
 
   // Keep StatusStrip in sync with the phase.
   React.useEffect(() => {
-    if (phase === "empty") setCanvasState("IDLE");
+    if (phase === "empty" || phase === "error") setCanvasState("IDLE");
     else if (phase === "loaded") setCanvasState("LOADED");
     else if (phase === "running") setCanvasState("RUNNING");
     else if (phase === "done") setCanvasState("COMPLETE");
   }, [phase, setCanvasState]);
-
-  // Deferred "done" transition timer — cleared on unmount so it can't fire
-  // setState against an unmounted component. Declared before the early returns
-  // below to keep hook order stable (Rules of Hooks).
-  const doneTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-  React.useEffect(() => () => {
-    if (doneTimer.current) clearTimeout(doneTimer.current);
-  }, []);
 
   const hasOptions = !!tool && tool.options.length > 0;
   const runStep = hasOptions ? 3 : 2;
@@ -72,33 +66,24 @@ export function WorkCanvas({ toolId }: { toolId: string }) {
       : 0;
 
   const handleFiles = React.useCallback(
-    (incoming: LoadedFile[]) => {
-      setFiles((prev) => {
-        if (isMulti) {
-          // Append, skipping files already loaded (same name + size).
-          const seen = new Set(prev.map((f) => `${f.name}:${f.buffer.byteLength}`));
-          const next = incoming.filter((f) => !seen.has(`${f.name}:${f.buffer.byteLength}`));
-          return [...prev, ...next];
-        }
-        return [incoming[0]];
-      });
-      setError(null);
-      setPhase("loaded");
-    },
-    [isMulti]
+    (incoming: LoadedFile[]) => addFiles(toolId, incoming, isMulti),
+    [addFiles, toolId, isMulti]
   );
 
-  const handlePickError = React.useCallback((e: unknown) => {
-    setError(e instanceof Error ? e.message : String(e));
-  }, []);
+  const handlePickError = React.useCallback(
+    (e: unknown) => setErrorAction(toolId, e instanceof Error ? e.message : String(e)),
+    [setErrorAction, toolId]
+  );
 
-  const handleRemoveFile = React.useCallback((index: number) => {
-    setFiles((prev) => prev.filter((_, i) => i !== index));
-  }, []);
+  const handleRemoveFile = React.useCallback(
+    (index: number) => removeFileAction(toolId, index),
+    [removeFileAction, toolId]
+  );
 
-  const handleReorder = React.useCallback((next: LoadedFile[]) => {
-    setFiles(next);
-  }, []);
+  const handleReorder = React.useCallback(
+    (next: LoadedFile[]) => reorderFiles(toolId, next),
+    [reorderFiles, toolId]
+  );
 
   const handleAddMore = React.useCallback(() => {
     openPdf(true).then((f) => f && handleFiles(f)).catch(handlePickError);
@@ -142,43 +127,10 @@ export function WorkCanvas({ toolId }: { toolId: string }) {
     );
   }
 
-  const handleRun = async () => {
-    if (!canRun) return;
-    if (files.some((f) => f.buffer.byteLength === 0)) {
-      setError("A loaded file is empty — clear it and drop the PDF again.");
-      return;
-    }
-    setPhase("running");
-    setError(null);
-    setProgress(0);
-    const startedAt = performance.now();
-    try {
-      const outcome = await tool.run({
-        files,
-        options,
-        onProgress: (pct) => setProgress(pct),
-      });
-      setProgress(100);
-      setDurationMs(performance.now() - startedAt);
-      // Spec: 100% + 260ms -> done. Recent is recorded after saving.
-      doneTimer.current = setTimeout(() => {
-        setResult(outcome);
-        setPhase("done");
-      }, 260);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-      setPhase("error");
-    }
-  };
-
-  const reset = () => {
-    setFiles([]);
-    setResult(null);
-    setError(null);
-    setProgress(0);
-    setPhase("empty");
-    setDurationMs(0);
-  };
+  // The run itself lives in the workspace store so it keeps going (and settles
+  // to "done") even if the user navigates away from this tool mid-run.
+  const handleRun = () => runAction(toolId);
+  const reset = () => resetAction(toolId);
 
   return (
     <div
@@ -243,7 +195,7 @@ export function WorkCanvas({ toolId }: { toolId: string }) {
                 <OptionsPanel
                   options={tool.options}
                   values={options}
-                  onChange={setOptions}
+                  onChange={(v) => setOptionsAction(toolId, v)}
                   dimmed={phase === "running"}
                 />
               </StepRow>
