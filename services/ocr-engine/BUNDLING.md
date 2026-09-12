@@ -16,11 +16,13 @@ Tauri app
 
 ## ⚠️ Environment requirements (hard constraints)
 
-- **Python 3.11 or 3.12 only.** PaddlePaddle (the OCR backend) publishes wheels
-  for CPython 3.9–3.12. There are **no 3.13 / 3.14 wheels** — `pip install
-  paddlepaddle` fails on newer Pythons. Verify with:
+- **Python 3.11 (use 3.11, not 3.12).** PaddlePaddle publishes wheels for
+  CPython 3.9–3.12 (no 3.13/3.14). But `paddlex` (a PaddleOCR dep) pins
+  `pandas<=1.5.3`, and pandas 1.5.3 has **no cp312 wheel** — on 3.12 pip tries
+  to build it from source and fails. **3.11 has a prebuilt pandas 1.5.3 wheel**,
+  so the whole install resolves cleanly. Verify with:
   ```bash
-  python --version   # must be 3.11.x or 3.12.x
+  python --version   # must be 3.11.x
   ```
 - **~2 GB free** (PaddlePaddle + PaddleOCR + models + PyInstaller output).
 - **PyInstaller** (`pip install pyinstaller`).

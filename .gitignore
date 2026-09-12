@@ -16,6 +16,12 @@ src-tauri/gen/
 services/pdf-engine/pdflexity-engine
 services/pdf-engine/pdflexity-engine.exe
 
+# OCR feature-pack build artifacts (built on demand / by CI, hosted as a
+# GitHub release asset — never committed; multi-hundred-MB)
+services/ocr-engine/.venv*/
+services/ocr-engine/.build/
+src-tauri/resources/
+
 # Env / logs
 .env
 .env.local
