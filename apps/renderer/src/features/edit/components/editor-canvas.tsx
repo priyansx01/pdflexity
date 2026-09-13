@@ -99,14 +99,15 @@ export function EditorCanvas() {
   const selected = page.blocks.find((b) => b.id === selectedId);
 
   return (
-    <div ref={containerRef} className="relative flex h-full w-full items-start justify-center overflow-auto bg-muted/10 p-8">
+    <div ref={containerRef} className="relative flex h-full w-full items-start justify-center overflow-auto bg-muted/30 p-8 dark:bg-black/40">
       {rendering && (
-        <div className="pointer-events-none absolute right-4 top-4 z-30 flex items-center gap-2 rounded-full bg-background/80 px-3 py-1 text-xs text-muted-foreground shadow">
+        <div className="pointer-events-none absolute right-4 top-4 z-30 flex items-center gap-2 rounded-full border border-hairline bg-surface/90 px-3 py-1 text-xs text-muted-foreground shadow">
           <Loader2 className="h-3.5 w-3.5 animate-spin text-emerald" /> Rendering…
         </div>
       )}
 
-      <div className="relative shadow-2xl ring-1 ring-border/50" style={{ width: page.width * scale, height: page.height * scale }}>
+      {/* The document: a bright white sheet on the dark desk (both themes). */}
+      <div className="relative bg-white shadow-2xl ring-1 ring-black/10" style={{ width: page.width * scale, height: page.height * scale }}>
         <canvas ref={canvasRef} className="block" />
 
         {/* Editable text overlay */}
@@ -157,8 +158,10 @@ function EditableTextBox({ block, scale, selected, onSelect, onChange }: {
       onBlur={handleBlur}
       className={cn(
         "absolute cursor-text overflow-hidden whitespace-pre-wrap outline-none",
-        selected ? "ring-2 ring-emerald/60 z-20" : "ring-1 ring-transparent hover:ring-emerald/25 z-10",
-        block.edited && "bg-emerald/5"
+        // The sheet is always white, so keep a dark caret regardless of app theme.
+        "caret-black selection:bg-emerald/30",
+        selected ? "ring-2 ring-emerald/70 z-20" : "ring-1 ring-transparent hover:ring-emerald/30 z-10",
+        block.edited && "bg-emerald/10"
       )}
       style={{
         left: block.bbox.x * scale,
@@ -169,7 +172,7 @@ function EditableTextBox({ block, scale, selected, onSelect, onChange }: {
         fontWeight: block.bold ? 700 : 400,
         fontStyle: block.italic ? "italic" : "normal",
         textAlign: block.align,
-        color: block.color || "#000000",
+        color: block.color || "#111111",
         lineHeight: 1.1,
       }}
     >

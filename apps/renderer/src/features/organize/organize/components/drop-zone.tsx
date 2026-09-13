@@ -87,7 +87,7 @@ export function DropZone({ onFiles, isCompact }: DropZoneProps) {
           </h3>
           <p className="text-sm text-muted-foreground/80 max-w-[280px]">
             Drag and drop your PDF files here, or{" "}
-            <span className="font-semibold text-emerald-400 underline-offset-4 group-hover:underline">browse</span>
+            <span className="font-semibold text-emerald-400 underline-offset-4 group-hover:underline">open a file</span>
           </p>
         </div>
       </div>

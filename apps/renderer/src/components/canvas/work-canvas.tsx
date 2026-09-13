@@ -330,7 +330,7 @@ function EmptyDropzone({
       </motion.div>
       <p className="text-[15px] font-medium">Drop your PDF here</p>
       <p className="mt-1 text-[13px] text-muted-foreground">
-        or <span className="text-emerald">browse your files</span>
+        or <span className="text-emerald">open a file</span>
       </p>
       <span className="mt-4 rounded-full border border-hairline px-2.5 py-1 text-[11px] text-muted-foreground">
         {tool.accepts}

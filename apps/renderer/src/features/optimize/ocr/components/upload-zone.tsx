@@ -89,7 +89,7 @@ export function UploadZone({ onFileSelected }: { onFileSelected: () => void }) {
             Make Scanned PDFs Editable
           </h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Upload a scanned PDF — OCR processes locally on your device for complete privacy.
+            Open a scanned PDF — OCR processes locally on your device for complete privacy.
           </p>
         </div>
 

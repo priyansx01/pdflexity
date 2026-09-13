@@ -21,15 +21,14 @@ export function EditPage() {
   // Release the document when leaving the tool.
   React.useEffect(() => () => useEditStore.getState().reset(), []);
 
-  const handleFile = React.useCallback(async (file: File) => {
+  const openBuffer = React.useCallback(async (name: string, buffer: ArrayBuffer) => {
     const api = getElectronAPI()?.edit;
     if (!api) return;
-    const buffer = await file.arrayBuffer();
     useEditStore.getState().setLoading();
     try {
       const res = await api.extract(buffer);
       if (res.success) {
-        useEditStore.getState().setDocument(file.name, buffer, res.data.pages);
+        useEditStore.getState().setDocument(name, buffer, res.data.pages);
       } else {
         useEditStore.getState().setError(res.error || "Couldn't read the PDF.");
       }
@@ -37,6 +36,20 @@ export function EditPage() {
       useEditStore.getState().setError(getErrorMessage(e) || "Couldn't read the PDF.");
     }
   }, []);
+
+  const handleFile = React.useCallback(
+    async (file: File) => openBuffer(file.name, await file.arrayBuffer()),
+    [openBuffer]
+  );
+
+  // A document handed off from another tool (e.g. OCR "Edit") auto-loads here.
+  React.useEffect(() => {
+    const pending = useEditStore.getState().pendingOpen;
+    if (pending && useEditStore.getState().step === "idle") {
+      useEditStore.getState().clearPendingOpen();
+      openBuffer(pending.name, pending.buffer);
+    }
+  }, [openBuffer]);
 
   const handleSave = React.useCallback(async () => {
     const api = getElectronAPI()?.edit;

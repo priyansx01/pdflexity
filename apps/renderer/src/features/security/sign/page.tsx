@@ -159,12 +159,12 @@ export function SignPage() {
                               "text-sm font-semibold tracking-tight transition-colors duration-200",
                               dragging ? "text-indigo-500" : "text-foreground/80 group-hover:text-foreground"
                             )}>
-                              {dragging ? "Release to upload" : "Drop PDF here"}
+                              {dragging ? "Release to open" : "Drop PDF here"}
                             </p>
                             <p className="text-xs text-muted-foreground mt-0.5">
                               or{" "}
                               <span className="font-medium text-indigo-500 underline-offset-2 group-hover:underline">
-                                browse
+                                open a file
                               </span>
                             </p>
                           </div>

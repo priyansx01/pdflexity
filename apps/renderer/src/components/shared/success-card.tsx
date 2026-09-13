@@ -31,7 +31,7 @@ export function SuccessCard({
   onReset,
   title = "Complete",
   description = "Your file is ready.",
-  primaryActionText = "Download",
+  primaryActionText = "Save",
   secondaryActionText = "Start over",
   className,
   onSave,

@@ -3,10 +3,12 @@
 import { motion } from "motion/react"
 import {
   Download, Undo2, Redo2, ZoomIn, ZoomOut, Eye, EyeOff,
-  Columns3, PanelLeft, PanelRight, ChevronDown, Globe, ShieldCheck, Loader2,
+  Columns3, PanelLeft, PanelRight, ChevronDown, Globe, ShieldCheck, Loader2, PenSquare,
 } from "lucide-react"
+import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { useOcrStore } from "@/stores/use-ocr-store"
+import { useEditStore } from "@/stores/use-edit-store"
 import type { ExportFormat } from "@/features/optimize/ocr/types"
 import { useState } from "react"
 
@@ -29,6 +31,14 @@ export function WorkspaceHeader({
   } = useOcrStore()
   const [showExportMenu, setShowExportMenu] = useState(false)
   const [downloading, setDownloading] = useState(false)
+  const router = useRouter()
+
+  const openInEditor = () => {
+    const f = useOcrStore.getState().uploadedFile
+    if (!f) return
+    useEditStore.getState().requestOpen(f.name, f.buffer)
+    router.push("/edit")
+  }
 
   const handleDownloadPdf = async () => {
     setDownloading(true)
@@ -150,17 +160,28 @@ export function WorkspaceHeader({
         </button>
       </div>
 
-      {/* Right: Download OCR PDF (primary) + Export menu (other formats) */}
+      {/* Right: Edit + Save OCR PDF (primary) + Export menu (other formats) */}
       <div className="flex items-center gap-2">
+        {/* Open the same document in the Edit tool */}
+        <button
+          onClick={openInEditor}
+          disabled={step !== "complete"}
+          className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-foreground/80 transition-all hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed"
+          title="Open this document in the PDF editor"
+        >
+          <PenSquare className="h-3.5 w-3.5" />
+          Edit
+        </button>
+
         {/* One-click: searchable OCR PDF */}
         <button
           onClick={handleDownloadPdf}
           disabled={downloading || step !== "complete"}
           className="flex items-center gap-1.5 rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-white shadow-lg shadow-emerald-500/20 transition-all hover:bg-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed"
-          title="Download the OCR'd PDF (original pages + searchable text layer)"
+          title="Save the OCR'd PDF (original pages + searchable text layer)"
         >
           {downloading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
-          {downloading ? "Preparing…" : "Download PDF"}
+          {downloading ? "Preparing…" : "Save PDF"}
         </button>
 
         {/* Export dropdown (other formats) */}

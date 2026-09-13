@@ -15,7 +15,11 @@ interface EditState {
   zoom: number; // percent
   step: EditStep;
   error: string | null;
+  /** A document another tool (e.g. OCR) asked to open here; consumed on mount. */
+  pendingOpen: { name: string; buffer: ArrayBuffer } | null;
 
+  requestOpen: (name: string, buffer: ArrayBuffer) => void;
+  clearPendingOpen: () => void;
   setLoading: () => void;
   setDocument: (fileName: string, bytes: ArrayBuffer, pages: EditPage[]) => void;
   updateBlock: (page: number, blockId: string, updates: Partial<EditBlock>) => void;
@@ -36,11 +40,14 @@ const initial = {
   zoom: 100,
   step: "idle" as EditStep,
   error: null as string | null,
+  pendingOpen: null as { name: string; buffer: ArrayBuffer } | null,
 };
 
 export const useEditStore = create<EditState>((set, get) => ({
   ...initial,
 
+  requestOpen: (name, buffer) => set({ pendingOpen: { name, buffer }, step: "idle", error: null }),
+  clearPendingOpen: () => set({ pendingOpen: null }),
   setLoading: () => set({ step: "loading", error: null }),
 
   setDocument: (fileName, bytes, pages) =>

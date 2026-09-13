@@ -76,7 +76,7 @@ export function SuccessCard({ fileName, downloadUrl, onReset, marksApplied, onSa
               className="flex-1 h-9 text-sm bg-[#10b981] hover:bg-[#059669] shadow-sm disabled:opacity-50"
             >
               <Download className="h-4 w-4 mr-2" />
-              {saving ? "Saving…" : "Download"}
+              {saving ? "Saving…" : "Save"}
             </Button>
           </div>
         </div>
