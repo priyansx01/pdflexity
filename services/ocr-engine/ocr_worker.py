@@ -67,6 +67,7 @@ def run_full_ocr(input_path: str, output_dir: str, languages: str, dpi: int):
         # Use the lightweight mobile models and skip the heavy doc-orientation /
         # unwarping pipelines: far smaller runtime download and much lower CPU/
         # memory use on a desktop (the server models can crash under PyInstaller).
+        cpu_threads = max(1, (os.cpu_count() or 4))
         ocr_engine = PaddleOCR(
             lang=paddle_lang,
             text_detection_model_name="PP-OCRv5_mobile_det",
@@ -74,6 +75,9 @@ def run_full_ocr(input_path: str, output_dir: str, languages: str, dpi: int):
             use_doc_orientation_classify=False,
             use_doc_unwarping=False,
             use_textline_orientation=False,
+            # CPU acceleration: oneDNN + all cores (paddle defaults to neither).
+            enable_mkldnn=True,
+            cpu_threads=cpu_threads,
         )
         logger.info("PaddleOCR engine initialized successfully.")
     except Exception as e:
@@ -87,7 +91,7 @@ def run_full_ocr(input_path: str, output_dir: str, languages: str, dpi: int):
     total_confidence = 0.0
     start_time = time.time()
     
-    base_zoom = 2.0
+    base_zoom = 1.75
     
     for page_idx in range(total_pages):
         page_num = page_idx + 1
