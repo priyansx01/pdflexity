@@ -1,5 +1,6 @@
-paddlepaddle==3.1.0
-paddleocr==3.0.1
+rapidocr_onnxruntime==1.4.4
+onnxruntime>=1.17.0
+opencv-python>=4.9.0
 PyMuPDF==1.25.5
 python-docx==1.1.2
 Pillow>=10.0.0

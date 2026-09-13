@@ -9,10 +9,9 @@ $ErrorActionPreference = "Stop"
 
 Write-Host "==> Building pdflexity-ocr-worker with PyInstaller (--onedir)" -ForegroundColor Cyan
 
-# paddlex checks its optional-dependency "extras" at runtime via
-# importlib.metadata (require_extra), so the .dist-info metadata for EVERY
-# installed package must be bundled or OCR init fails. Generate --copy-metadata
-# for all installed distributions.
+# Bundle .dist-info metadata for every installed distribution (small, and some
+# packages resolve versions at runtime via importlib.metadata). Generated
+# dynamically so the script stays reproducible.
 $names = & python -c "import importlib.metadata as m; print('\n'.join(sorted({d.metadata['Name'] for d in m.distributions() if d.metadata['Name']})))"
 $metaArgs = @()
 foreach ($n in ($names -split "`r?`n" | Where-Object { $_ })) { $metaArgs += "--copy-metadata"; $metaArgs += $n.Trim() }
@@ -21,9 +20,8 @@ Write-Host "==> Bundling metadata for $($metaArgs.Count / 2) distributions" -For
 $args = @(
   "--noconfirm", "--onedir", "--name", "pdflexity-ocr-worker",
   "--distpath", "../../src-tauri/resources/ocr", "--workpath", ".build", "--specpath", ".build",
-  "--hidden-import", "paddleocr", "--hidden-import", "paddle", "--hidden-import", "paddlex",
-  "--collect-all", "paddleocr", "--collect-all", "paddle", "--collect-all", "paddlex",
-  "--collect-all", "fitz", "--collect-all", "docx", "--collect-all", "numpy"
+  "--collect-all", "rapidocr_onnxruntime", "--collect-all", "onnxruntime",
+  "--collect-all", "fitz", "--collect-all", "cv2", "--collect-all", "docx", "--collect-all", "numpy"
 ) + $metaArgs + @("ocr_worker.py")
 
 pyinstaller @args

@@ -10,10 +10,9 @@ set -euo pipefail
 
 echo "==> Building pdflexity-ocr-worker with PyInstaller (--onedir)"
 
-# paddlex checks its optional-dependency "extras" at runtime via
-# importlib.metadata (require_extra), so the .dist-info metadata for EVERY
-# installed package must be bundled or OCR init fails. Generate --copy-metadata
-# for all installed distributions.
+# Bundle .dist-info metadata for every installed distribution (small, and some
+# packages resolve versions at runtime via importlib.metadata). Generated
+# dynamically so the script stays reproducible.
 META=$(python -c "import importlib.metadata as m; print(' '.join('--copy-metadata '+n for n in sorted({d.metadata['Name'] for d in m.distributions() if d.metadata['Name']})))")
 
 pyinstaller \
@@ -23,13 +22,10 @@ pyinstaller \
   --distpath ../../src-tauri/resources/ocr \
   --workpath .build \
   --specpath .build \
-  --hidden-import paddleocr \
-  --hidden-import paddle \
-  --hidden-import paddlex \
-  --collect-all paddleocr \
-  --collect-all paddle \
-  --collect-all paddlex \
+  --collect-all rapidocr_onnxruntime \
+  --collect-all onnxruntime \
   --collect-all fitz \
+  --collect-all cv2 \
   --collect-all docx \
   --collect-all numpy \
   $META \

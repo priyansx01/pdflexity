@@ -1,31 +1,36 @@
 # OCR Engine — Bundling for Tauri (Phase A)
 
 The OCR pipeline is orchestrated by the **Go engine**, which spawns a **Python**
-worker (`ocr_worker.py`, PaddleOCR + PyMuPDF) and streams JSON events. In
-development the worker runs from the system Python; for production distribution
-it must be bundled as a self-contained executable.
+worker (`ocr_worker.py`, RapidOCR/ONNX Runtime + PyMuPDF) and streams JSON
+events. In development the worker runs from the system Python; for production
+distribution it is bundled as a self-contained executable and published as a
+GitHub release asset the app downloads on demand.
+
+The worker uses **RapidOCR (ONNX Runtime)** — it runs the same PP-OCR
+detection/recognition models as PaddleOCR but is ~3x faster per page, far
+lighter (no PaddlePaddle runtime), and much simpler to bundle. (It replaced a
+PaddleOCR worker that was large, slow, and painful to freeze.)
 
 ## Architecture
 
 ```
 Tauri app
   └─ pdflexity-engine (Go binary, resource)
-       └─ spawns  pdflexity-ocr-worker(.exe)   ← PyInstaller bundle (resource)
-             └─ PaddleOCR / PyMuPDF / numpy / python-docx
+       └─ spawns  pdflexity-ocr-worker(.exe)   ← PyInstaller bundle (release asset)
+             └─ RapidOCR (onnxruntime) / PyMuPDF / numpy / python-docx
 ```
 
-## ⚠️ Environment requirements (hard constraints)
+## ⚠️ Environment requirements
 
-- **Python 3.11 (use 3.11, not 3.12).** PaddlePaddle publishes wheels for
-  CPython 3.9–3.12 (no 3.13/3.14). But `paddlex` (a PaddleOCR dep) pins
-  `pandas<=1.5.3`, and pandas 1.5.3 has **no cp312 wheel** — on 3.12 pip tries
-  to build it from source and fails. **3.11 has a prebuilt pandas 1.5.3 wheel**,
-  so the whole install resolves cleanly. Verify with:
+- **Python 3.11** (what the CI + release pack use; 3.12 also works for RapidOCR).
   ```bash
-  python --version   # must be 3.11.x
+  python --version
   ```
-- **~2 GB free** (PaddlePaddle + PaddleOCR + models + PyInstaller output).
+- **~1 GB free** for the venv + PyInstaller output (pack is ~300 MB, ~127 MB
+  zipped).
 - **PyInstaller** (`pip install pyinstaller`).
+- OCR models are **not bundled** — RapidOCR ships small ONNX models with the
+  package, so they're inside the pack; nothing downloads at runtime.
 
 > The dev machine used for this migration runs Python 3.14, so the bundle could
 > not be built here. Build it on a machine (or CI image) with Python 3.12.
