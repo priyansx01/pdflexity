@@ -153,6 +153,26 @@ function EditableTextBox({ block, scale, selected, onSelect, onChange }: {
 }) {
   const ref = React.useRef<HTMLDivElement>(null);
 
+  // "Active" = the user is working on this line (selected) or has already edited
+  // it. Only active lines get lifted into a white-masked editable field; every
+  // other line stays transparent so the PRISTINE rendered page shows through.
+  const active = selected || !!block.edited;
+
+  // When a block becomes selected, focus it and drop the caret at the end so a
+  // single click lets you start typing over the (now-masked) original.
+  React.useEffect(() => {
+    if (selected && ref.current) {
+      const el = ref.current;
+      el.focus();
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      range.collapse(false);
+      const sel = window.getSelection();
+      sel?.removeAllRanges();
+      sel?.addRange(range);
+    }
+  }, [selected]);
+
   const handleBlur = () => {
     const t = ref.current?.innerText ?? "";
     if (t !== block.text) onChange(t);
@@ -163,17 +183,19 @@ function EditableTextBox({ block, scale, selected, onSelect, onChange }: {
       ref={ref}
       contentEditable
       suppressContentEditableWarning
+      role="textbox"
+      tabIndex={0}
+      onPointerDown={onSelect}
       onFocus={onSelect}
       onBlur={handleBlur}
       className={cn(
         "absolute cursor-text overflow-hidden whitespace-pre-wrap outline-none",
-        // The sheet is always white, so keep a dark caret regardless of app theme.
         "caret-black selection:bg-emerald/30",
-        selected
-          ? "ring-1 ring-emerald/70 z-20"
-          : block.edited
-            ? "ring-1 ring-emerald/40 z-10"
-            : "ring-1 ring-transparent hover:ring-emerald/30 z-10"
+        active
+          ? selected
+            ? "ring-1 ring-emerald/70 z-20"
+            : "ring-1 ring-emerald/40 z-10"
+          : "ring-1 ring-transparent hover:ring-emerald/40 hover:bg-emerald/5 z-10"
       )}
       style={{
         left: block.bbox.x * scale,
@@ -184,12 +206,13 @@ function EditableTextBox({ block, scale, selected, onSelect, onChange }: {
         fontWeight: block.bold ? 700 : 400,
         fontStyle: block.italic ? "italic" : "normal",
         textAlign: block.align,
-        color: block.color || "#111111",
         lineHeight: 1.1,
-        // Opaque white mask over the original rendered text so each line shows
-        // ONCE and matches the saved output (which whites-out + redraws). Edited
-        // blocks are flagged with the emerald ring above, not a translucent tint.
-        backgroundColor: "#ffffff",
+        // Inactive: transparent text + no background → the crisp original page
+        // shows through untouched (enterprise fidelity). Active: opaque white
+        // mask + the block's real color → this one line is now "ours" to edit,
+        // matching what Save bakes (white-redact + redraw).
+        color: active ? (block.color || "#111111") : "transparent",
+        backgroundColor: active ? "#ffffff" : "transparent",
       }}
     >
       {block.text}

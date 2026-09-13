@@ -3,7 +3,7 @@
 import * as React from "react";
 import { basename } from "@tauri-apps/api/path";
 import { PenSquare, UploadCloud, Download, Loader2, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCcw } from "lucide-react";
-import { getElectronAPI } from "@/lib/backend-types";
+import { getElectronAPI, type EditPage as EditPageModel } from "@/lib/backend-types";
 import { getErrorMessage } from "@/lib/utils";
 import { savePdfAuto } from "@/lib/desktop";
 import { useRecent } from "@/stores/use-recent-store";
@@ -22,21 +22,35 @@ export function EditPage() {
   // other persisted tools) — resetting on unmount raced with React StrictMode's
   // double-mount and wiped a handed-off doc. Use the "New" button to clear.
 
-  const openBuffer = React.useCallback(async (name: string, buffer: ArrayBuffer) => {
-    const api = getElectronAPI()?.edit;
-    if (!api) return;
-    useEditStore.getState().setLoading();
-    try {
-      const res = await api.extract(buffer);
-      if (res.success) {
-        useEditStore.getState().setDocument(name, buffer, res.data.pages);
-      } else {
-        useEditStore.getState().setError(res.error || "Couldn't read the PDF.");
+  // Extract the real text layer via fitz (crisp fonts/positions/spacing). Only
+  // fall back to OCR-recognized text (fallbackPages) when the PDF has no text
+  // layer of its own — i.e. a scan.
+  const openBuffer = React.useCallback(
+    async (name: string, buffer: ArrayBuffer, fallbackPages?: EditPageModel[]) => {
+      const api = getElectronAPI()?.edit;
+      if (!api) return;
+      useEditStore.getState().setLoading();
+      try {
+        const res = await api.extract(buffer);
+        if (res.success) {
+          const total = res.data.pages.reduce((n, p) => n + p.blocks.length, 0);
+          const pages = total > 0 ? res.data.pages : (fallbackPages ?? res.data.pages);
+          useEditStore.getState().setDocument(name, buffer, pages);
+        } else if (fallbackPages?.length) {
+          useEditStore.getState().setDocument(name, buffer, fallbackPages);
+        } else {
+          useEditStore.getState().setError(res.error || "Couldn't read the PDF.");
+        }
+      } catch (e) {
+        if (fallbackPages?.length) {
+          useEditStore.getState().setDocument(name, buffer, fallbackPages);
+        } else {
+          useEditStore.getState().setError(getErrorMessage(e) || "Couldn't read the PDF.");
+        }
       }
-    } catch (e) {
-      useEditStore.getState().setError(getErrorMessage(e) || "Couldn't read the PDF.");
-    }
-  }, []);
+    },
+    []
+  );
 
   const handleFile = React.useCallback(
     async (file: File) => openBuffer(file.name, await file.arrayBuffer()),
@@ -48,12 +62,9 @@ export function EditPage() {
     const pending = useEditStore.getState().pendingOpen;
     if (pending && useEditStore.getState().step === "idle") {
       useEditStore.getState().clearPendingOpen();
-      if (pending.pages && pending.pages.length) {
-        // OCR handed off its recognized text — use it directly (works for scans).
-        useEditStore.getState().setDocument(pending.name, pending.buffer, pending.pages);
-      } else {
-        openBuffer(pending.name, pending.buffer);
-      }
+      // Prefer the crisp fitz text layer; use OCR's recognized text only as a
+      // fallback for scans that have no text layer of their own.
+      openBuffer(pending.name, pending.buffer, pending.pages);
     }
   }, [openBuffer]);
 
