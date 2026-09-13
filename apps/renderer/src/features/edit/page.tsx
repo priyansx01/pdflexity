@@ -33,8 +33,20 @@ export function EditPage() {
       try {
         const res = await api.extract(buffer);
         if (res.success) {
-          const total = res.data.pages.reduce((n, p) => n + p.blocks.length, 0);
-          const pages = total > 0 ? res.data.pages : (fallbackPages ?? res.data.pages);
+          const fitz = res.data.pages;
+          const total = fitz.reduce((n, p) => n + p.blocks.length, 0);
+          let pages: EditPageModel[];
+          if (total > 0) {
+            // Use fitz's real text layer (true color/font/size) for editing, but
+            // keep the crisp page image from the fallback (OCR's fitz render) as
+            // the pristine backdrop when available — best of both.
+            pages = fitz.map((fp, i) => ({
+              ...fp,
+              imageBase64: fallbackPages?.[i]?.imageBase64 ?? fp.imageBase64,
+            }));
+          } else {
+            pages = fallbackPages ?? fitz;
+          }
           useEditStore.getState().setDocument(name, buffer, pages);
         } else if (fallbackPages?.length) {
           useEditStore.getState().setDocument(name, buffer, fallbackPages);

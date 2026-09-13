@@ -7,6 +7,14 @@ import { useEditStore, type EditableBlock } from "@/stores/use-edit-store";
 import { BlockFormatToolbar } from "./block-format-toolbar";
 import { cn } from "@/lib/utils";
 
+/** Map a PDF font name to a close CSS family so edited text matches the original. */
+function cssFontFamily(fontName?: string): string {
+  const n = (fontName || "").toLowerCase();
+  if (n.includes("mono") || n.includes("courier") || n.includes("consol")) return "ui-monospace, monospace";
+  if (n.includes("times") || n.includes("serif") || n.includes("georgia") || n.includes("roman") || n.includes("min")) return "Georgia, 'Times New Roman', serif";
+  return "Arial, Helvetica, sans-serif";
+}
+
 /**
  * The editor surface: renders the current page with pdf.js and overlays
  * absolutely-positioned, contentEditable text boxes aligned to the extracted
@@ -235,6 +243,7 @@ function EditableTextBox({ block, scale, selected, onSelect, onChange }: {
         width: block.bbox.width * scale,
         minHeight: block.bbox.height * scale,
         fontSize: block.fontSize * scale,
+        fontFamily: cssFontFamily(block.fontName),
         fontWeight: block.bold ? 700 : 400,
         fontStyle: block.italic ? "italic" : "normal",
         textAlign: block.align,
