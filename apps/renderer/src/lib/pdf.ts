@@ -55,8 +55,19 @@ export interface PdfGetDocumentTask {
 }
 
 export interface PdfJsLib {
-  getDocument(options: { data: Uint8Array; password?: string }): PdfGetDocumentTask;
+  getDocument(options: {
+    data: Uint8Array;
+    password?: string;
+    standardFontDataUrl?: string;
+  }): PdfGetDocumentTask;
   GlobalWorkerOptions: { workerSrc: string };
+}
+
+/** Served location of pdf.js's standard (base-14) font data — required to
+ *  render PDFs that reference non-embedded standard fonts (Helvetica/Times/…). */
+export function standardFontsUrl(): string {
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  return `${origin}/standard_fonts/`;
 }
 
 // ─── Lazy singleton ───────────────────────────────────────────────────────────
@@ -84,7 +95,7 @@ export async function getPdfMeta(
   try {
     const lib = await getPdfjs();
     const data = new Uint8Array(buffer.slice(0));
-    const pdf = await lib.getDocument({ data, password: "" }).promise;
+    const pdf = await lib.getDocument({ data, password: "", standardFontDataUrl: standardFontsUrl() }).promise;
     const pages = pdf.numPages;
     try {
       await pdf.destroy();
@@ -111,7 +122,7 @@ export async function renderThumbnail(
   try {
     const lib = await getPdfjs();
     const data = new Uint8Array(buffer.slice(0));
-    const pdf = await lib.getDocument({ data, password: "" }).promise;
+    const pdf = await lib.getDocument({ data, password: "", standardFontDataUrl: standardFontsUrl() }).promise;
     const page = await pdf.getPage(1);
     const base = page.getViewport({ scale: 1 });
     const scale = maxWidth / base.width;

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { Loader2 } from "lucide-react";
-import { getPdfjs, type PdfDocument, type PdfRenderTask } from "@/lib/pdf";
+import { getPdfjs, standardFontsUrl, type PdfDocument, type PdfRenderTask } from "@/lib/pdf";
 import { useEditStore, type EditableBlock } from "@/stores/use-edit-store";
 import { BlockFormatToolbar } from "./block-format-toolbar";
 import { cn } from "@/lib/utils";
@@ -28,34 +28,47 @@ export function EditorCanvas() {
 
   const page = pages.find((p) => p.page === currentPage);
   const scale = zoom / 100;
+  // A pre-rendered page image (e.g. OCR's fitz render) is the pristine backdrop;
+  // when present we skip pdf.js entirely (more reliable, higher fidelity).
+  const pageImage = page?.imageBase64
+    ? page.imageBase64.startsWith("data:")
+      ? page.imageBase64
+      : `data:image/png;base64,${page.imageBase64}`
+    : null;
+
+  const [docReady, setDocReady] = React.useState(false);
 
   // Load the pdf.js document once per pdfBytes; destroy on change/unmount.
+  // Skipped when a pre-rendered page image is available.
   React.useEffect(() => {
-    if (!pdfBytes) return;
+    if (!pdfBytes || pageImage) return;
     let active = true;
     let loaded: PdfDocument | null = null;
+    setDocReady(false);
     (async () => {
       try {
         const lib = await getPdfjs();
         const data = new Uint8Array(pdfBytes.slice(0));
-        const doc = await lib.getDocument({ data }).promise;
+        const doc = await lib.getDocument({ data, standardFontDataUrl: standardFontsUrl() }).promise;
         loaded = doc;
         if (!active) return;
         docRef.current = doc;
+        setDocReady(true); // triggers the render effect now that the doc exists
       } catch (e) {
         console.error("[edit] load pdf:", e);
       }
     })();
     return () => {
       active = false;
+      setDocReady(false);
       loaded?.destroy().catch(() => {});
       if (docRef.current === loaded) docRef.current = null;
     };
   }, [pdfBytes]);
 
-  // Render the current page whenever page/zoom/doc changes.
+  // Render the current page whenever the doc becomes ready / page / zoom change.
   React.useEffect(() => {
-    if (!page) return;
+    if (!page || !docReady || pageImage) return;
     let active = true;
     let task: PdfRenderTask | null = null;
     const raf = requestAnimationFrame(async () => {
@@ -69,9 +82,18 @@ export function EditorCanvas() {
         const viewport = pg.getViewport({ scale });
         const ctx = canvas.getContext("2d");
         if (!ctx) return;
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
-        task = pg.render({ canvasContext: ctx, viewport });
+        // Render at device-pixel-ratio for a crisp page on HiDPI displays; the
+        // CSS size stays in points*scale so the editable overlay still aligns.
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = Math.floor(viewport.width * dpr);
+        canvas.height = Math.floor(viewport.height * dpr);
+        canvas.style.width = `${viewport.width}px`;
+        canvas.style.height = `${viewport.height}px`;
+        task = pg.render({
+          canvasContext: ctx,
+          viewport,
+          transform: dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : undefined,
+        });
         await task.promise;
       } catch (e) {
         if ((e as { name?: string })?.name !== "RenderingCancelledException") {
@@ -86,7 +108,7 @@ export function EditorCanvas() {
       cancelAnimationFrame(raf);
       task?.cancel();
     };
-  }, [page, currentPage, scale]);
+  }, [docReady, page, currentPage, scale]);
 
   if (!page) {
     return (
@@ -108,7 +130,17 @@ export function EditorCanvas() {
 
       {/* The document: a bright white sheet on the dark desk (both themes). */}
       <div className="relative bg-white shadow-2xl ring-1 ring-black/10" style={{ width: page.width * scale, height: page.height * scale }}>
-        <canvas ref={canvasRef} className="block" />
+        {pageImage ? (
+          <img
+            src={pageImage}
+            alt={`Page ${currentPage}`}
+            className="block"
+            style={{ width: page.width * scale, height: page.height * scale }}
+            draggable={false}
+          />
+        ) : (
+          <canvas ref={canvasRef} className="block" />
+        )}
 
         {/* Editable text overlay */}
         <div className="absolute inset-0">

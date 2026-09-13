@@ -34,16 +34,18 @@ export function WorkspaceHeader({
   const router = useRouter()
 
   const openInEditor = () => {
-    const { uploadedFile: f, pageResults } = useOcrStore.getState()
+    const { uploadedFile: f, pageResults, pageImages } = useOcrStore.getState()
     if (!f) return
     // Hand OCR's recognized text to the editor directly (works even for scans,
-    // which have no extractable text layer of their own).
+    // which have no extractable text layer of their own), plus OCR's crisp
+    // fitz-rendered page image as the pristine backdrop.
     const pages = Array.from(pageResults.values())
       .sort((a, b) => a.page - b.page)
       .map((p) => ({
         page: p.page,
         width: p.width,
         height: p.height,
+        imageBase64: pageImages.get(p.page),
         blocks: p.textBlocks.map((b) => ({
           id: b.id,
           text: b.text,

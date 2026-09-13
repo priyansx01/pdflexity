@@ -309,6 +309,9 @@ export interface EditPage {
   width: number;
   height: number;
   blocks: EditBlock[];
+  /** A pre-rendered page image (base64 PNG) to show as the pristine backdrop,
+   *  e.g. OCR's fitz-rendered page. When absent the editor renders via pdf.js. */
+  imageBase64?: string;
 }
 
 export interface EditAPI {
