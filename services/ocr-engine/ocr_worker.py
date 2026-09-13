@@ -64,9 +64,16 @@ def run_full_ocr(input_path: str, output_dir: str, languages: str, dpi: int):
         logging.getLogger("ppocr").setLevel(logging.ERROR)
         
         logger.info("Initializing PaddleOCR engine...")
+        # Use the lightweight mobile models and skip the heavy doc-orientation /
+        # unwarping pipelines: far smaller runtime download and much lower CPU/
+        # memory use on a desktop (the server models can crash under PyInstaller).
         ocr_engine = PaddleOCR(
-            use_angle_cls=False,
-            lang=paddle_lang
+            lang=paddle_lang,
+            text_detection_model_name="PP-OCRv5_mobile_det",
+            text_recognition_model_name="PP-OCRv5_mobile_rec",
+            use_doc_orientation_classify=False,
+            use_doc_unwarping=False,
+            use_textline_orientation=False,
         )
         logger.info("PaddleOCR engine initialized successfully.")
     except Exception as e:
