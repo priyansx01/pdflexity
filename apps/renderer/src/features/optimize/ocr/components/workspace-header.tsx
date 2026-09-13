@@ -3,7 +3,7 @@
 import { motion } from "motion/react"
 import {
   Download, Undo2, Redo2, ZoomIn, ZoomOut, Eye, EyeOff,
-  Columns3, PanelLeft, PanelRight, ChevronDown, Globe, ShieldCheck,
+  Columns3, PanelLeft, PanelRight, ChevronDown, Globe, ShieldCheck, Loader2,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useOcrStore } from "@/stores/use-ocr-store"
@@ -20,7 +20,7 @@ const exportFormats: { value: ExportFormat; label: string; desc: string }[] = [
 export function WorkspaceHeader({
   onExport,
 }: {
-  onExport: (format: ExportFormat) => void
+  onExport: (format: ExportFormat) => void | Promise<void>
 }) {
   const {
     uploadedFile, overallConfidence, detectedLanguages,
@@ -28,6 +28,16 @@ export function WorkspaceHeader({
     step,
   } = useOcrStore()
   const [showExportMenu, setShowExportMenu] = useState(false)
+  const [downloading, setDownloading] = useState(false)
+
+  const handleDownloadPdf = async () => {
+    setDownloading(true)
+    try {
+      await onExport("searchable-pdf")
+    } finally {
+      setDownloading(false)
+    }
+  }
 
   const confidenceColor =
     overallConfidence >= 0.9
@@ -140,15 +150,25 @@ export function WorkspaceHeader({
         </button>
       </div>
 
-      {/* Right: Export */}
+      {/* Right: Download OCR PDF (primary) + Export menu (other formats) */}
       <div className="flex items-center gap-2">
-        {/* Export dropdown */}
+        {/* One-click: searchable OCR PDF */}
+        <button
+          onClick={handleDownloadPdf}
+          disabled={downloading || step !== "complete"}
+          className="flex items-center gap-1.5 rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-white shadow-lg shadow-emerald-500/20 transition-all hover:bg-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed"
+          title="Download the OCR'd PDF (original pages + searchable text layer)"
+        >
+          {downloading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+          {downloading ? "Preparing…" : "Download PDF"}
+        </button>
+
+        {/* Export dropdown (other formats) */}
         <div className="relative">
           <button
             onClick={() => setShowExportMenu(!showExportMenu)}
-            className="flex items-center gap-1.5 rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-white shadow-lg shadow-emerald-500/20 transition-all hover:bg-emerald-400"
+            className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-foreground/80 transition-all hover:bg-white/10"
           >
-            <Download className="h-3.5 w-3.5" />
             Export
             <ChevronDown className="h-3 w-3" />
           </button>

@@ -33,9 +33,7 @@ export default function OcrPage() {
   }, [startOcr])
 
   const handleExport = useCallback(
-    (format: ExportFormat) => {
-      exportResults(format)
-    },
+    (format: ExportFormat) => exportResults(format),
     [exportResults]
   )
 
