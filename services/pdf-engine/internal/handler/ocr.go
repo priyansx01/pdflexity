@@ -107,20 +107,26 @@ func handleOCRStart(enc *json.Encoder, cmd model.Command) {
 			continue
 		}
 
-		// Parse and re-emit the JSON event from Python
-		var event model.OCRStreamEvent
+		// Forward the worker's event verbatim. We parse into a generic map (not
+		// a typed struct) so any field-type drift between the Python worker and
+		// the Go models can't drop an otherwise-valid event — the engine is a
+		// transparent pass-through; the frontend owns the event shape.
+		var event map[string]interface{}
 		if err := json.Unmarshal([]byte(line), &event); err != nil {
-			log.Printf("OCR: bad JSON from worker: %s", line)
+			preview := line
+			if len(preview) > 200 {
+				preview = preview[:200] + "…"
+			}
+			log.Printf("OCR: bad JSON from worker: %s", preview)
 			continue
 		}
 
-		// Forward event directly to stdout
 		if err := enc.Encode(event); err != nil {
 			log.Printf("OCR: failed to encode event: %v", err)
 		}
 
-		// If this is the final event, stop reading
-		if event.Type == "complete" || event.Type == "error" {
+		// If this is the final event, stop reading.
+		if etype, _ := event["type"].(string); etype == "complete" || etype == "error" {
 			break
 		}
 	}
