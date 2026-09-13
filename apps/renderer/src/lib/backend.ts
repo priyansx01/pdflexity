@@ -218,6 +218,13 @@ export function createElectronAPI() {
     })(),
   };
 
+  const edit = {
+    extract: (buffer: ArrayBuffer) =>
+      call("pdf_edit_extract", { bufferB64: arrayBufferToBase64(buffer) }),
+    apply: (buffer: ArrayBuffer, fileName: string, edits: unknown) =>
+      call("pdf_edit_apply", { bufferB64: arrayBufferToBase64(buffer), fileName, edits }),
+  };
+
   const feature = {
     status: (id: string) =>
       invoke<{ installed: boolean; version?: string | null; expectedVersion: string }>(
@@ -240,6 +247,7 @@ export function createElectronAPI() {
     getVersion: () => invoke<string>("app_get_version"),
     openExternal: (url: string) => invoke<void>("open_external", { url }),
     pdf,
+    edit,
     feature,
   };
 }

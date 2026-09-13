@@ -362,28 +362,185 @@ def export_pdf(input_path: str, ocr_data: dict, edits: dict, output_path: str, m
     except Exception as e:
         emit_error(f"PDF export failed: {e}")
 
+# ─── PDF text editing (fitz) ──────────────────────────────────────────────────
+
+def _hex_color(srgb_int) -> str:
+    """fitz span color is an sRGB int (0xRRGGBB) → '#rrggbb'."""
+    try:
+        v = int(srgb_int)
+    except (TypeError, ValueError):
+        return "#000000"
+    return "#{:06x}".format(v & 0xFFFFFF)
+
+def _base14_font(font_name: str, bold: bool, italic: bool) -> str:
+    """Map an arbitrary font name + flags to a PyMuPDF built-in (base-14) code.
+    Valid codes: helv/hebo/heit/hebi, cour/cobo/coit/cobi, tiro/tibo/tiit/tibi."""
+    name = (font_name or "").lower()
+    if "mono" in name or "courier" in name or "consol" in name:
+        fam = "co"  # Courier
+    elif "times" in name or "serif" in name or "georgia" in name or "roman" in name or "min" in name:
+        fam = "ti"  # Times
+    else:
+        fam = "he"  # Helvetica
+    if fam == "ti":
+        return {(False, False): "tiro", (True, False): "tibo",
+                (False, True): "tiit", (True, True): "tibi"}[(bold, italic)]
+    if fam == "co":
+        return {(False, False): "cour", (True, False): "cobo",
+                (False, True): "coit", (True, True): "cobi"}[(bold, italic)]
+    return {(False, False): "helv", (True, False): "hebo",
+            (False, True): "heit", (True, True): "hebi"}[(bold, italic)]
+
+def run_edit_extract(input_path: str):
+    """Emit an editable text model per page (blocks with geometry + style)."""
+    import fitz
+    try:
+        doc = fitz.open(input_path)
+    except Exception as e:
+        emit_error(f"Failed to open PDF: {e}")
+        return
+
+    pages = []
+    for pno in range(len(doc)):
+        page = doc[pno]
+        rect = page.rect
+        blocks = []
+        data = page.get_text("dict")
+        for bi, block in enumerate(data.get("blocks", [])):
+            if block.get("type", 0) != 0:  # 0 = text block
+                continue
+            for li, line in enumerate(block.get("lines", [])):
+                spans = line.get("spans", [])
+                if not spans:
+                    continue
+                text = "".join(s.get("text", "") for s in spans)
+                if not text.strip():
+                    continue
+                xs0 = min(s["bbox"][0] for s in spans)
+                ys0 = min(s["bbox"][1] for s in spans)
+                xs1 = max(s["bbox"][2] for s in spans)
+                ys1 = max(s["bbox"][3] for s in spans)
+                first = spans[0]
+                flags = first.get("flags", 0)
+                bold = bool(flags & 16) or "bold" in first.get("font", "").lower()
+                italic = bool(flags & 2) or "italic" in first.get("font", "").lower() or "oblique" in first.get("font", "").lower()
+                blocks.append({
+                    "id": f"p{pno}-l{bi}-{li}",
+                    "text": text,
+                    "bbox": {"x": xs0, "y": ys0, "width": xs1 - xs0, "height": ys1 - ys0},
+                    "fontSize": round(first.get("size", 11.0), 1),
+                    "fontName": first.get("font", ""),
+                    "color": _hex_color(first.get("color", 0)),
+                    "bold": bold,
+                    "italic": italic,
+                    "align": "left",
+                })
+        pages.append({
+            "page": pno + 1,
+            "width": rect.width,
+            "height": rect.height,
+            "blocks": blocks,
+        })
+    doc.close()
+    emit({"type": "complete", "data": {"pages": pages}})
+
+def run_edit_apply(input_path: str, output_path: str):
+    """Apply edits (from stdin JSON) to the PDF: redact originals, redraw edits."""
+    import fitz
+    edits_line = sys.stdin.readline().strip()
+    try:
+        edits = json.loads(edits_line) if edits_line else []
+    except Exception:
+        edits = []
+    # edits: [{ page, bbox{x,y,width,height}, text, fontSize, color, bold, italic, align, fontName }]
+    try:
+        doc = fitz.open(input_path)
+
+        # Group edits by page; redact all originals first, then redraw.
+        by_page = {}
+        for e in edits:
+            by_page.setdefault(int(e.get("page", 1)) - 1, []).append(e)
+
+        for pno, page_edits in by_page.items():
+            if pno < 0 or pno >= len(doc):
+                continue
+            page = doc[pno]
+            rects = []
+            for e in page_edits:
+                b = e.get("bbox", {})
+                rects.append(fitz.Rect(b.get("x", 0), b.get("y", 0),
+                                       b.get("x", 0) + b.get("width", 0),
+                                       b.get("y", 0) + b.get("height", 0)))
+            # Remove the original glyphs under each edited box.
+            for r in rects:
+                page.add_redact_annot(r, fill=(1, 1, 1))
+            page.apply_redactions()
+            # Redraw the edited text.
+            for e, r in zip(page_edits, rects):
+                text = e.get("text", "")
+                if not text:
+                    continue
+                color_hex = (e.get("color") or "#000000").lstrip("#")
+                try:
+                    rr = int(color_hex[0:2], 16) / 255.0
+                    gg = int(color_hex[2:4], 16) / 255.0
+                    bb = int(color_hex[4:6], 16) / 255.0
+                except Exception:
+                    rr, gg, bb = 0.0, 0.0, 0.0
+                align_map = {"left": 0, "center": 1, "right": 2, "justify": 3}
+                fontname = _base14_font(e.get("fontName", ""), bool(e.get("bold")), bool(e.get("italic")))
+                fs = e.get("fontSize", 11)
+                align = align_map.get(e.get("align", "left"), 0)
+                # fitz's insert_textbox is conservative about vertical fit; give it
+                # generous height (it only draws within the text extent anyway) and
+                # a tight line-height so the redrawn text lands on the original line.
+                draw_rect = fitz.Rect(r.x0, r.y0 - 1, r.x1, r.y0 + fs * 3.0 + 2)
+                rc = page.insert_textbox(
+                    draw_rect, text, fontsize=fs, fontname=fontname,
+                    color=(rr, gg, bb), align=align, lineheight=1.0,
+                )
+                # If it still overflowed, step the font down until it fits.
+                shrink = fs
+                while rc < 0 and shrink > 5:
+                    shrink -= 1
+                    rc = page.insert_textbox(
+                        draw_rect, text, fontsize=shrink, fontname=fontname,
+                        color=(rr, gg, bb), align=align, lineheight=1.0,
+                    )
+
+        doc.save(output_path, garbage=3, deflate=True)
+        doc.close()
+        emit({"type": "complete", "data": {"outputPath": output_path}})
+    except Exception as e:
+        import traceback
+        emit_error(f"Edit apply failed: {e}\n{traceback.format_exc()}")
+
 def main():
     parser = argparse.ArgumentParser(description="PDFlexity OCR Worker")
     parser.add_argument("--input", required=True, help="Input PDF path")
     parser.add_argument("--output-dir", default=".", help="Output directory")
     parser.add_argument("--languages", default="en", help="Comma-separated language codes")
     parser.add_argument("--dpi", type=int, default=300, help="Render DPI")
-    parser.add_argument("--mode", default="full", choices=["full", "render-page", "export"])
+    parser.add_argument("--mode", default="full", choices=["full", "render-page", "export", "edit-extract", "edit-apply"])
     parser.add_argument("--export-format", default="searchable-pdf", help="Export format")
     parser.add_argument("--export-output", default="", help="Export output path")
-    
+
     args, unknown = parser.parse_known_args()
-    
+
     if not os.path.exists(args.input):
         emit_error(f"Input file not found: {args.input}")
         return
-    
+
     if args.mode == "full":
         run_full_ocr(args.input, args.output_dir, args.languages, args.dpi)
     elif args.mode == "render-page":
         run_render_page(args.input, 1, args.dpi)
     elif args.mode == "export":
         run_export(args.input, args.output_dir, args.export_format, args.export_output)
+    elif args.mode == "edit-extract":
+        run_edit_extract(args.input)
+    elif args.mode == "edit-apply":
+        run_edit_apply(args.input, args.export_output)
 
 if __name__ == "__main__":
     main()

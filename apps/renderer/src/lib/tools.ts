@@ -1,10 +1,10 @@
 import {
   Merge, Scissors, FileOutput, ArrowDownUp, RotateCw, PenTool, LockOpen, Shield,
-  FileStack, EyeOff, Minimize2, Wrench, ScanSearch,
+  FileStack, EyeOff, Minimize2, Wrench, ScanSearch, PenSquare,
   type LucideIcon,
 } from "lucide-react";
 
-export type ToolGroup = "Organize" | "Security" | "Optimize";
+export type ToolGroup = "Edit" | "Organize" | "Security" | "Optimize";
 
 export type ToolOption =
   | { kind: "password"; id: string; label: string; hint?: string }
@@ -66,6 +66,15 @@ const requireFile = (files: RunArgs["files"]) => {
 };
 
 export const TOOLS: Tool[] = [
+  // ── Edit ──
+  {
+    id: "edit", name: "Edit PDF", group: "Edit", icon: PenSquare,
+    subtitle: "Edit text directly in the PDF", engine: "PyMuPDF", capability: "In-place",
+    href: "/edit", accepts: "PDF only", cta: "Edit", runningVerb: "Editing",
+    options: [], complex: true,
+    run: async () => { throw new Error("Edit uses a custom canvas"); },
+  },
+
   // ── Organize ──
   {
     id: "merge", name: "Merge PDF", group: "Organize", icon: Merge,

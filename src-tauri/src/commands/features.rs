@@ -42,7 +42,7 @@ const fn ocr_pack_asset() -> Option<&'static str> {
 /// these in from the CI-published `.sha256` files once the release exists).
 const fn ocr_pack_sha256() -> &'static str {
     if cfg!(all(target_os = "windows", target_arch = "x86_64")) {
-        "6762b923414c630b4d65977d97fd5b6ebead26dac9c77ec09c2d08340556051a"
+        "ade8f8981c7c4cfbe27ffabe39c1fce4e50b0140f85a5b059a45358aee288edc"
     } else if cfg!(all(target_os = "macos", target_arch = "x86_64")) {
         ""
     } else if cfg!(all(target_os = "linux", target_arch = "x86_64")) {

@@ -112,6 +112,9 @@ type Command struct {
 	// feature pack). When set, the engine runs it directly instead of
 	// `python ocr_worker.py`.
 	WorkerPath string `json:"workerPath,omitempty"`
+
+	// PDF editor: JSON edit list (serialized) piped to the worker for edit-apply.
+	EditData string `json:"editData,omitempty"`
 }
 
 // Response is the JSON-RPC result written to stdout.

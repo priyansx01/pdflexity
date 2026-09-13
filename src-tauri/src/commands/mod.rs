@@ -4,6 +4,7 @@
 
 pub mod app;
 pub mod compress;
+pub mod edit;
 pub mod features;
 pub mod ocr;
 pub mod pdf;

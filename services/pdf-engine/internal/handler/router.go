@@ -45,6 +45,10 @@ func Route(enc *json.Encoder, cmd model.Command) {
 		handleOCRRenderPage(enc, cmd)
 	case "ocr-export":
 		handleOCRExport(enc, cmd)
+	case "edit-extract":
+		handleEditExtract(enc, cmd)
+	case "edit-apply":
+		handleEditApply(enc, cmd)
 	default:
 		writeError(enc, fmt.Sprintf("unknown operation: %q", cmd.Op))
 	}

@@ -12,7 +12,7 @@ import { getTool, type Tool, type ToolGroup } from "@/lib/tools";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-const GROUP_ORDER: ToolGroup[] = ["Organize", "Security", "Optimize"];
+const GROUP_ORDER: ToolGroup[] = ["Edit", "Organize", "Security", "Optimize"];
 
 export function ToolRail({
   tools,

@@ -290,11 +290,38 @@ export interface FeatureAPI {
   onInstallProgress: (cb: (data: FeatureInstallProgress) => void) => Promise<() => void>;
 }
 
+// ─── PDF editor ────────────────────────────────────────────────────────────
+
+export interface EditBlock {
+  id: string;
+  text: string;
+  bbox: { x: number; y: number; width: number; height: number };
+  fontSize: number;
+  fontName: string;
+  color: string;
+  bold: boolean;
+  italic: boolean;
+  align: "left" | "center" | "right" | "justify";
+}
+
+export interface EditPage {
+  page: number;
+  width: number;
+  height: number;
+  blocks: EditBlock[];
+}
+
+export interface EditAPI {
+  extract: (buffer: ArrayBuffer) => Promise<DataResult<{ pages: EditPage[] }>>;
+  apply: (buffer: ArrayBuffer, fileName: string, edits: unknown) => Promise<PdfBytesResult>;
+}
+
 export interface ElectronAPI {
   getPlatform: () => Promise<string>;
   getVersion: () => Promise<string>;
   openExternal: (url: string) => Promise<void>;
   pdf: PdfAPI;
+  edit: EditAPI;
   feature: FeatureAPI;
 }
 

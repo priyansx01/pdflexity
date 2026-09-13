@@ -78,6 +78,9 @@ pub struct Command {
     /// engine runs it directly instead of `python ocr_worker.py`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub worker_path: Option<String>,
+    /// PDF editor: serialized JSON edit list, piped to the worker for edit-apply.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub edit_data: Option<String>,
 }
 
 impl Command {
@@ -111,6 +114,7 @@ impl Command {
             ocr_data: None,
             edits: None,
             worker_path: None,
+            edit_data: None,
         }
     }
 

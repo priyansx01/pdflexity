@@ -127,6 +127,9 @@ pub fn run() {
             commands::rotate::pdf_rotate,
             // Repair (Go engine / pdfcpu)
             commands::repair::pdf_repair,
+            // PDF editor (fitz worker)
+            commands::edit::pdf_edit_extract,
+            commands::edit::pdf_edit_apply,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
