@@ -34,9 +34,29 @@ export function WorkspaceHeader({
   const router = useRouter()
 
   const openInEditor = () => {
-    const f = useOcrStore.getState().uploadedFile
+    const { uploadedFile: f, pageResults } = useOcrStore.getState()
     if (!f) return
-    useEditStore.getState().requestOpen(f.name, f.buffer)
+    // Hand OCR's recognized text to the editor directly (works even for scans,
+    // which have no extractable text layer of their own).
+    const pages = Array.from(pageResults.values())
+      .sort((a, b) => a.page - b.page)
+      .map((p) => ({
+        page: p.page,
+        width: p.width,
+        height: p.height,
+        blocks: p.textBlocks.map((b) => ({
+          id: b.id,
+          text: b.text,
+          bbox: b.bbox,
+          fontSize: b.fontSize,
+          fontName: "",
+          color: b.color || "#111111",
+          bold: b.fontWeight === "bold",
+          italic: b.fontStyle === "italic",
+          align: b.alignment,
+        })),
+      }))
+    useEditStore.getState().requestOpen(f.name, f.buffer, pages)
     router.push("/edit")
   }
 

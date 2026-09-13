@@ -18,8 +18,9 @@ export function EditPage() {
   const [saving, setSaving] = React.useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-  // Release the document when leaving the tool.
-  React.useEffect(() => () => useEditStore.getState().reset(), []);
+  // NOTE: the document is intentionally kept when leaving the tool (like the
+  // other persisted tools) — resetting on unmount raced with React StrictMode's
+  // double-mount and wiped a handed-off doc. Use the "New" button to clear.
 
   const openBuffer = React.useCallback(async (name: string, buffer: ArrayBuffer) => {
     const api = getElectronAPI()?.edit;
@@ -47,7 +48,12 @@ export function EditPage() {
     const pending = useEditStore.getState().pendingOpen;
     if (pending && useEditStore.getState().step === "idle") {
       useEditStore.getState().clearPendingOpen();
-      openBuffer(pending.name, pending.buffer);
+      if (pending.pages && pending.pages.length) {
+        // OCR handed off its recognized text — use it directly (works for scans).
+        useEditStore.getState().setDocument(pending.name, pending.buffer, pending.pages);
+      } else {
+        openBuffer(pending.name, pending.buffer);
+      }
     }
   }, [openBuffer]);
 

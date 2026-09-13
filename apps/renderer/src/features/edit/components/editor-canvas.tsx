@@ -130,6 +130,15 @@ export function EditorCanvas() {
             onUpdate={(u) => updateBlock(currentPage, selected.id, u)}
           />
         )}
+
+        {/* No selectable text on this page (e.g. a scanned/image-only PDF). */}
+        {!rendering && page.blocks.length === 0 && (
+          <div className="pointer-events-none absolute inset-x-0 top-4 flex justify-center">
+            <span className="rounded-full bg-surface/90 px-3 py-1 text-[11px] text-muted-foreground shadow ring-1 ring-hairline">
+              No editable text on this page — run OCR first to make a scan editable.
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -160,8 +169,11 @@ function EditableTextBox({ block, scale, selected, onSelect, onChange }: {
         "absolute cursor-text overflow-hidden whitespace-pre-wrap outline-none",
         // The sheet is always white, so keep a dark caret regardless of app theme.
         "caret-black selection:bg-emerald/30",
-        selected ? "ring-2 ring-emerald/70 z-20" : "ring-1 ring-transparent hover:ring-emerald/30 z-10",
-        block.edited && "bg-emerald/10"
+        selected
+          ? "ring-1 ring-emerald/70 z-20"
+          : block.edited
+            ? "ring-1 ring-emerald/40 z-10"
+            : "ring-1 ring-transparent hover:ring-emerald/30 z-10"
       )}
       style={{
         left: block.bbox.x * scale,
@@ -174,6 +186,10 @@ function EditableTextBox({ block, scale, selected, onSelect, onChange }: {
         textAlign: block.align,
         color: block.color || "#111111",
         lineHeight: 1.1,
+        // Opaque white mask over the original rendered text so each line shows
+        // ONCE and matches the saved output (which whites-out + redraws). Edited
+        // blocks are flagged with the emerald ring above, not a translucent tint.
+        backgroundColor: "#ffffff",
       }}
     >
       {block.text}
