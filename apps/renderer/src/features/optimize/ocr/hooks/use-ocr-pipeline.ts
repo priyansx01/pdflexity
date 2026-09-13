@@ -4,7 +4,9 @@ import { useCallback, useEffect, useRef } from "react"
 import { useOcrStore } from "@/stores/use-ocr-store"
 import { getElectronAPI, type OCRPagePayload, type OCRProgressEvent } from "@/lib/backend-types"
 import { getErrorMessage } from "@/lib/utils"
+import { savePdfAuto } from "@/lib/desktop"
 import { useRecent } from "@/stores/use-recent-store"
+import { basename } from "@tauri-apps/api/path"
 import type { OCRPageResult, OCRStep } from "@/features/optimize/ocr/types"
 
 /**
@@ -154,31 +156,47 @@ export function useOcrPipeline() {
       )
 
       if (result.success) {
-        // Create download from base64
-        const binaryStr = atob(result.data)
-        const bytes = new Uint8Array(binaryStr.length)
-        for (let i = 0; i < binaryStr.length; i++) {
-          bytes[i] = binaryStr.charCodeAt(i)
+        const extMap: Record<string, string> = {
+          "editable-pdf": ".pdf",
+          "searchable-pdf": ".pdf",
+          "docx": ".docx",
+          "json": ".json",
         }
+        const ext = extMap[format] || ""
+        // The engine returns the name without an extension (e.g. "doc-ocr").
+        const fileName = result.fileName.endsWith(ext) ? result.fileName : `${result.fileName}${ext}`
 
-        const mimeMap: Record<string, string> = {
-          "editable-pdf": "application/pdf",
-          "searchable-pdf": "application/pdf",
-          "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-          "json": "application/json",
+        if (format === "editable-pdf" || format === "searchable-pdf") {
+          // Save the OCR'd PDF through the desktop adapter: writes straight to
+          // the configured folder (or a native Save dialog), like the other
+          // tools — no browser download. Returns null if the user cancels.
+          const savedPath = await savePdfAuto(fileName, result.data)
+          if (savedPath) {
+            useRecent.getState().add({
+              toolId: "ocr",
+              fileName: await basename(savedPath),
+              path: savedPath,
+            })
+          }
+        } else {
+          // Non-PDF formats (DOCX / JSON): browser download.
+          const binaryStr = atob(result.data)
+          const bytes = new Uint8Array(binaryStr.length)
+          for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i)
+          const mimeMap: Record<string, string> = {
+            docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            json: "application/json",
+          }
+          const blob = new Blob([bytes], { type: mimeMap[format] || "application/octet-stream" })
+          const url = URL.createObjectURL(blob)
+          useOcrStore.getState().setExportUrl(url)
+          const a = document.createElement("a")
+          a.href = url
+          a.download = fileName
+          document.body.appendChild(a)
+          a.click()
+          document.body.removeChild(a)
         }
-
-        const blob = new Blob([bytes], { type: mimeMap[format] || "application/octet-stream" })
-        const url = URL.createObjectURL(blob)
-        useOcrStore.getState().setExportUrl(url)
-
-        // Trigger download
-        const a = document.createElement("a")
-        a.href = url
-        a.download = result.fileName
-        document.body.appendChild(a)
-        a.click()
-        document.body.removeChild(a)
       } else {
         useOcrStore.getState().setError(result.error || "Export failed")
       }
